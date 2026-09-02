@@ -390,18 +390,24 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
       `}</style>
 
       {/* Floating Action Bar */}
-      <div className="w-full max-w-[1180px] flex items-center justify-between gap-2 mb-3 no-print bg-slate-900 text-white p-3 rounded-xl shadow-xl border border-slate-700">
-        <div className="flex items-center gap-2">
-          <div className="font-bold text-sm text-emerald-400 flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-emerald-400" />
+      <div className="w-full max-w-[1180px] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3 no-print bg-slate-900 text-white p-3.5 rounded-xl shadow-xl border border-slate-700">
+        <div className="flex items-center justify-between gap-2">
+          <div className="font-bold text-xs sm:text-sm text-emerald-400 flex items-center gap-1.5">
+            <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>গুগল শিট এক্সাক্ট অ্যাপ্রুভাল টেমপ্লেট (Landscape A4)</span>
           </div>
+          <button
+            onClick={onClose}
+            className="sm:hidden w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               isEditing ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-600'
             }`}
           >
@@ -412,27 +418,27 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
           <button
             onClick={handleDownloadPdf}
             disabled={isGeneratingPdf}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
           >
             {isGeneratingPdf ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            <span>{isGeneratingPdf ? 'PDF তৈরি হচ্ছে...' : '📥 PDF ডাউনলোড'}</span>
+            <span>{isGeneratingPdf ? 'PDF...' : '📥 PDF ডাউনলোড'}</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md transition-all cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md transition-all cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>🖨️ ডাইরেক্ট প্রিন্ট</span>
+            <span>🖨️ প্রিন্ট</span>
           </button>
 
           <button
             onClick={handleDownloadCsv}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-600 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-600 transition-all cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
             <span>CSV</span>
@@ -440,7 +446,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="hidden sm:flex w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-white items-center justify-center transition-colors cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

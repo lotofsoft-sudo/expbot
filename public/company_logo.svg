@@ -1,10 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350" width="1000" height="350" style="background:#ffffff;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 350" width="1200" height="350" style="background:#ffffff;">
   <defs>
     <!-- Deep Gradient for English typography -->
     <linearGradient id="wafaqBlue" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#0e56cc" />
       <stop offset="45%" stop-color="#043a9e" />
       <stop offset="100%" stop-color="#012269" />
+    </linearGradient>
+
+    <!-- W Ribbon Gradient -->
+    <linearGradient id="wGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e6ae8" />
+      <stop offset="50%" stop-color="#0748b8" />
+      <stop offset="100%" stop-color="#01236a" />
     </linearGradient>
     
     <!-- Tapered line gradients -->
@@ -19,23 +26,42 @@
     </linearGradient>
   </defs>
 
-  <rect width="1000" height="350" fill="#ffffff" />
+  <rect width="1200" height="350" fill="#ffffff" />
 
-  <g transform="translate(0,0)">
-    <!-- Left Horizontal Accent Line -->
-    <polygon points="60,118 330,118 330,123 60,119" fill="url(#leftLineGrad)" />
-    
-    <!-- Right Horizontal Accent Line -->
-    <polygon points="670,118 940,118 940,123 670,123" fill="url(#rightLineGrad)" />
+  <g transform="translate(40, 20)">
+    <!-- LEFT SIDE: Iconic W Symbol + Wafaq -->
+    <g transform="translate(20, 30)">
+      <!-- W Icon Graphic -->
+      <path d="M 10 30 C 25 120, 50 170, 75 170 C 95 170, 110 120, 120 40 C 135 120, 150 170, 170 170 C 190 170, 215 120, 230 30 C 210 100, 190 140, 170 140 C 150 140, 130 90, 120 30 C 110 90, 90 140, 75 140 C 55 140, 30 100, 10 30 Z" fill="url(#wGradient)" />
+      
+      <!-- Arabic وفاق -->
+      <text x="280" y="95" font-family="'Traditional Arabic', 'Segoe UI', 'Amiri', 'Noto Naskh Arabic', Arial, sans-serif" font-weight="900" font-size="64" fill="#043a9e">
+        وفاق
+      </text>
 
-    <!-- Top Arabic Text: شركة وافاك -->
-    <text x="500" y="132" text-anchor="middle" font-family="'Traditional Arabic', 'Segoe UI', 'Amiri', 'Noto Naskh Arabic', Arial, sans-serif" font-weight="900" font-size="52" fill="#043a9e">
-      شركة وافاك
-    </text>
+      <!-- English WAFAQ -->
+      <text x="275" y="160" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="52" letter-spacing="2" fill="url(#wafaqBlue)">
+        WAFAQ
+      </text>
+    </g>
 
-    <!-- Bottom English Text: WAFAQ COMPANY -->
-    <text x="500" y="242" text-anchor="middle" font-family="'Montserrat', 'Arial Black', 'Impact', 'Trebuchet MS', sans-serif" font-weight="900" font-size="78" letter-spacing="4" fill="url(#wafaqBlue)">
-      WAFAQ COMPANY
-    </text>
+    <!-- RIGHT SIDE: Corporate Header WAFAQ COMPANY -->
+    <g transform="translate(540, 10)">
+      <!-- Left Horizontal Accent Line -->
+      <polygon points="10,108 190,108 190,113 10,109" fill="url(#leftLineGrad)" />
+      
+      <!-- Right Horizontal Accent Line -->
+      <polygon points="380,108 560,108 560,113 380,113" fill="url(#rightLineGrad)" />
+
+      <!-- Top Arabic Text: شركة وافاك -->
+      <text x="285" y="118" text-anchor="middle" font-family="'Traditional Arabic', 'Segoe UI', 'Amiri', 'Noto Naskh Arabic', Arial, sans-serif" font-weight="900" font-size="44" fill="#043a9e">
+        شركة وافاك
+      </text>
+
+      <!-- Bottom English Text: WAFAQ COMPANY -->
+      <text x="285" y="200" text-anchor="middle" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="56" letter-spacing="3" fill="url(#wafaqBlue)">
+        WAFAQ COMPANY
+      </text>
+    </g>
   </g>
 </svg>

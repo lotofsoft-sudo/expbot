@@ -71,30 +71,42 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans animate-fadeIn">
       <div className="bg-white rounded-3xl border border-emerald-200 max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl relative">
         
-        {/* Top Header */}
+        {/* Company Logo Banner */}
         <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-900 text-white flex items-center justify-center font-extrabold shadow-md shrink-0">
-              <ShieldCheck className="w-7 h-7 text-emerald-300" />
+          <div className="flex flex-col items-start gap-1 w-full">
+            <div className="bg-emerald-50/80 rounded-2xl p-3 border border-emerald-100 w-full flex items-center justify-center">
+              <img
+                src="/company_logo.svg"
+                alt="WAFAQ Company Logo"
+                className="h-14 sm:h-16 max-w-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <div>
-              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide block">
-                ExpenseFlow KSA • Auth Center
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-emerald-950">
-                লগইন করুন (App Login)
-              </h2>
+            <div className="flex items-center justify-between w-full pt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-900 text-white flex items-center justify-center font-extrabold shadow-xs shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <span className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide block">
+                    ExpenseFlow KSA • Auth Center
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-black text-emerald-950">
+                    লগইন করুন (App Login)
+                  </h2>
+                </div>
+              </div>
+
+              {!isForcedLogin && onClose && (
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
-
-          {!isForcedLogin && onClose && (
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              ✕
-            </button>
-          )}
         </div>
 
         {/* Success Banner */}

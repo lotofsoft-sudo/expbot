@@ -520,7 +520,7 @@ export default function App() {
       </div>
 
       {/* Mobile Fixed Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-emerald-200/90 z-40 px-2 py-1.5 shadow-lg flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-emerald-200/90 z-40 px-2 py-1.5 shadow-lg flex items-center justify-start sm:justify-around overflow-x-auto gap-1 no-scrollbar">
         {mobileNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -529,21 +529,21 @@ export default function App() {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer relative min-h-[44px] ${
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer relative min-h-[44px] shrink-0 ${
                 isActive
-                  ? 'text-emerald-800 font-bold bg-emerald-100/80 scale-105'
-                  : 'text-emerald-900/70 hover:text-emerald-950 font-medium'
+                  ? 'text-emerald-950 font-extrabold bg-emerald-100/90 border border-emerald-200/80'
+                  : 'text-emerald-900/70 hover:text-emerald-950 font-semibold'
               }`}
             >
               <div className="relative">
                 <Icon className={`w-5 h-5 ${isActive ? 'text-emerald-800 stroke-[2.5]' : 'text-emerald-700'}`} />
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-amber-500 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1.5 -right-2 bg-amber-500 text-white font-extrabold text-[9px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center shadow-xs">
                     {item.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-0.5 whitespace-nowrap">{item.label}</span>
+              <span className="text-[10px] sm:text-[11px] mt-0.5 whitespace-nowrap">{item.label}</span>
             </button>
           );
         })}
