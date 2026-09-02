@@ -260,7 +260,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           userId: currentUser.uid || 'usr-tg',
           userName: currentUser.displayName || 'Telegram Employee',
           userEmail: currentUser.email || 'employee@alfalak.sa',
-          employeeId: currentUser.employeeId || 'KSA-4021',
+          employeeId: currentUser.employeeId || 'KSA-4022',
           department: currentUser.department || 'Operations',
           amount: expAmount,
           currency: 'SAR',

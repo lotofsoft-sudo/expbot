@@ -53,10 +53,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Check password if configured on user
-    if (foundUser.password && cleanPass && foundUser.password !== cleanPass) {
-      setErrorMsg('পাসওয়ার্ড ভুল হয়েছে, অনুগ্রহ করে সঠিক পাসওয়ার্ড দিন (Incorrect password)');
-      return;
+    // Check password requirement
+    if (foundUser.password) {
+      if (!cleanPass) {
+        setErrorMsg('পাসওয়ার্ড দিন (Please enter password)');
+        return;
+      }
+      if (foundUser.password !== cleanPass) {
+        setErrorMsg('পাসওয়ার্ড ভুল হয়েছে, অনুগ্রহ করে সঠিক পাসওয়ার্ড দিন (Incorrect password)');
+        return;
+      }
     }
 
     // Success login

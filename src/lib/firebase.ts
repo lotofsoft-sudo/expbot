@@ -112,27 +112,62 @@ export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
   totalSynced: 0
 };
 
+// Function to completely purge all demo expenses from Firestore and LocalStorage
+export async function purgeAllDemoExpensesFromFirestore() {
+  try {
+    console.log('Purging all demo expenses and Tariq Al-Mansoor user from Firestore and local cache...');
+    const expSnap = await getDocs(collection(db, 'expenses'));
+    for (const docSnap of expSnap.docs) {
+      const data = docSnap.data();
+      if (docSnap.id.startsWith('EXP-80') || data.userId === 'emp-101' || data.employeeId === 'KSA-4021' || data.userName?.includes('Tariq')) {
+        await deleteDoc(doc(db, 'expenses', docSnap.id));
+      }
+    }
+    // Purge emp-101 (Tariq) user document
+    await deleteDoc(doc(db, 'app_users', 'emp-101'));
+    
+    localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, '[]');
+    localStorage.setItem('system_seed_initialized', 'true');
+    const seedMarkerRef = doc(db, 'app_settings', 'system_seed_initialized');
+    await setDoc(seedMarkerRef, { initialized: true, purgedAt: new Date().toISOString() });
+    console.log('All demo expenses & Tariq Al-Mansoor successfully purged.');
+    return true;
+  } catch (err) {
+    console.warn('Error purging demo expenses:', err);
+    localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, '[]');
+    return false;
+  }
+}
+
 // Seed initial demo data in Firestore or local state if empty
 export async function seedInitialDataIfNeeded() {
   try {
     const isLocalSeeded = localStorage.getItem('system_seed_initialized');
-    if (isLocalSeeded === 'true') {
-      return;
-    }
-
     const seedMarkerRef = doc(db, 'app_settings', 'system_seed_initialized');
-    const seedMarkerSnap = await getDoc(seedMarkerRef);
-
-    if (seedMarkerSnap.exists()) {
+    
+    if (isLocalSeeded !== 'true') {
       localStorage.setItem('system_seed_initialized', 'true');
-      return;
+      await setDoc(seedMarkerRef, { initialized: true, seededAt: new Date().toISOString() });
     }
 
-    // Mark initialized immediately so future reloads will never re-seed deleted items
-    localStorage.setItem('system_seed_initialized', 'true');
-    await setDoc(seedMarkerRef, { initialized: true, seededAt: new Date().toISOString() });
+    // Always purge Tariq Al-Mansoor user & demo expenses on launch if present
+    try {
+      await deleteDoc(doc(db, 'app_users', 'emp-101'));
+    } catch (e) {
+      // Ignore if doesn't exist
+    }
 
-    console.log('Performing one-time initial seed to Firestore...');
+    const expSnap = await getDocs(collection(db, 'expenses'));
+    const demoDocs = expSnap.docs.filter(
+      (d) => d.id.startsWith('EXP-80') || d.data().userId === 'emp-101' || d.data().employeeId === 'KSA-4021' || d.data().userName?.includes('Tariq')
+    );
+    if (demoDocs.length > 0) {
+      console.log('Detected existing demo expenses or Tariq data. Purging...');
+      for (const d of demoDocs) {
+        await deleteDoc(doc(db, 'expenses', d.id));
+      }
+      localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, '[]');
+    }
 
     // 1. Seed Users if needed
     const usersSnap = await getDocs(collection(db, 'app_users'));
@@ -172,194 +207,6 @@ export async function seedInitialDataIfNeeded() {
         await setDoc(doc(db, 'telegram_commands', cmd.id), cmd);
       }
     }
-
-    const expSnap = await getDocs(collection(db, 'expenses'));
-    if (expSnap.empty) {
-      console.log('Seeding sample initial expenses to Firestore...');
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const d1 = new Date(now.getTime() - 86400000 * 1).toISOString().split('T')[0];
-      const d2 = new Date(now.getTime() - 86400000 * 3).toISOString().split('T')[0];
-      const d3 = new Date(now.getTime() - 86400000 * 5).toISOString().split('T')[0];
-      const d4 = new Date(now.getTime() - 86400000 * 12).toISOString().split('T')[0];
-      const d5 = new Date(now.getTime() - 86400000 * 20).toISOString().split('T')[0];
-      const d6 = new Date(now.getTime() - 86400000 * 45).toISOString().split('T')[0];
-
-      const sampleExpenses: Expense[] = [
-        {
-          id: 'EXP-8021',
-          userId: 'emp-101',
-          userName: 'Tariq Al-Mansoor',
-          userEmail: 'tariq.mansoor@alfalak.sa',
-          employeeId: 'KSA-4021',
-          department: 'Sales & Field Operations (Riyadh)',
-          amount: 280.00,
-          currency: 'SAR',
-          category: 'Travel & Transport',
-          description: 'Client Visit Taxi Fare & Fuel across Riyadh North Business Center',
-          totalAmount: 280.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Cash',
-          project: 'Riyadh Metro Expansion Client Meet',
-          approvedBy: 'Faisal Al-Otaibi',
-          date: todayStr,
-          status: 'pending',
-          submittedVia: 'web_chat',
-          syncedToGoogleSheets: false,
-          syncStatus: 'pending',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'EXP-8020',
-          userId: 'emp-101',
-          userName: 'Tariq Al-Mansoor',
-          userEmail: 'tariq.mansoor@alfalak.sa',
-          employeeId: 'KSA-4021',
-          department: 'Sales & Field Operations (Riyadh)',
-          amount: 450.00,
-          currency: 'SAR',
-          category: 'Food & Entertainment',
-          description: 'Official Business Lunch with Aramco Procurement Delegation',
-          totalAmount: 450.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Bank Transfer',
-          project: 'Aramco Vendor Onboarding',
-          approvedBy: 'Faisal Al-Otaibi',
-          approverNotes: 'Verified with official receipt.',
-          approvedAt: new Date(now.getTime() - 86400000 * 1).toISOString(),
-          date: d1,
-          status: 'approved',
-          submittedVia: 'telegram_bot',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 2).toISOString()
-        },
-        {
-          id: 'EXP-8019',
-          userId: 'emp-101',
-          userName: 'Tariq Al-Mansoor',
-          userEmail: 'tariq.mansoor@alfalak.sa',
-          employeeId: 'KSA-4021',
-          department: 'Sales & Field Operations (Riyadh)',
-          amount: 150.00,
-          currency: 'SAR',
-          category: 'Office Supplies',
-          description: 'Proposal presentation color prints & binding for Ministry tender',
-          totalAmount: 150.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Cash',
-          project: 'Ministry of Transport Tender',
-          approvedBy: 'Faisal Al-Otaibi',
-          approverNotes: 'Approved for urgent tender submission.',
-          approvedAt: new Date(now.getTime() - 86400000 * 4).toISOString(),
-          date: d2,
-          status: 'approved',
-          submittedVia: 'web_chat',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 5).toISOString()
-        },
-        {
-          id: 'EXP-8018',
-          userId: 'emp-102',
-          userName: 'Mohammad Al-Harbi',
-          userEmail: 'mohammad.harbi@alfalak.sa',
-          employeeId: 'KSA-4022',
-          department: 'Logistics & Supply Chain',
-          amount: 620.00,
-          currency: 'SAR',
-          category: 'Fuel & Vehicle',
-          description: 'Warehouse delivery truck diesel fuel & Jeddah highway toll tax',
-          totalAmount: 620.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Cash',
-          project: 'Jeddah Port Distribution',
-          approvedBy: 'Faisal Al-Otaibi',
-          date: d3,
-          status: 'approved',
-          submittedVia: 'telegram_bot',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 5).toISOString()
-        },
-        {
-          id: 'EXP-8017',
-          userId: 'emp-103',
-          userName: 'Ahmed Al-Ghamdi',
-          userEmail: 'ahmed.ghamdi@alfalak.sa',
-          employeeId: 'KSA-4023',
-          department: 'Site Engineering & Projects',
-          amount: 1250.00,
-          currency: 'SAR',
-          category: 'Site Equipment',
-          description: 'Emergency safety helmets, reflective jackets & laser level meters',
-          totalAmount: 1250.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Bank Transfer',
-          project: 'Diriyah Heritage Site Construction',
-          approvedBy: 'Faisal Al-Otaibi',
-          date: d4,
-          status: 'approved',
-          submittedVia: 'web_chat',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 12).toISOString()
-        },
-        {
-          id: 'EXP-8016',
-          userId: 'emp-104',
-          userName: 'Sara Al-Shehri',
-          userEmail: 'sara.shehri@alfalak.sa',
-          employeeId: 'KSA-4024',
-          department: 'Marketing & Client Relations',
-          amount: 890.00,
-          currency: 'SAR',
-          category: 'Advertising & Promotion',
-          description: 'Digital promotional booth roll-ups and Riyadh Expo brochures',
-          totalAmount: 890.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Bank Transfer',
-          project: 'Riyadh Tech Expo 2026',
-          approvedBy: 'Faisal Al-Otaibi',
-          date: d5,
-          status: 'approved',
-          submittedVia: 'web_chat',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 20).toISOString()
-        },
-        {
-          id: 'EXP-8015',
-          userId: 'emp-101',
-          userName: 'Tariq Al-Mansoor',
-          userEmail: 'tariq.mansoor@alfalak.sa',
-          employeeId: 'KSA-4021',
-          department: 'Sales & Field Operations (Riyadh)',
-          amount: 1100.00,
-          currency: 'SAR',
-          category: 'Hotel & Accommodation',
-          description: '3-Day Dammam Regional Branch Sales Summit Hotel stay',
-          totalAmount: 1100.00,
-          vatStatus: 'With VAT',
-          paymentMethod: 'Bank Transfer',
-          project: 'Eastern Province Expansion',
-          approvedBy: 'Faisal Al-Otaibi',
-          date: d6,
-          status: 'approved',
-          submittedVia: 'web_chat',
-          syncedToGoogleSheets: true,
-          syncStatus: 'synced',
-          createdAt: new Date(now.getTime() - 86400000 * 45).toISOString()
-        }
-      ];
-
-      for (const e of sampleExpenses) {
-        await setDoc(doc(db, 'expenses', e.id), e);
-      }
-    }
-
-    // Mark seed initialized so future refreshes will never re-create deleted items
-    await setDoc(seedMarkerRef, { initialized: true, seededAt: new Date().toISOString() });
   } catch (err) {
     console.warn('Firestore seed warning (offline/permission fallback enabled):', err);
   }

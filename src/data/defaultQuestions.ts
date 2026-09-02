@@ -164,19 +164,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export const INITIAL_USERS: AppUser[] = [
   {
-    uid: 'emp-101',
-    email: 'tariq.mansoor@alfalak.sa',
-    displayName: 'Tariq Al-Mansoor',
-    role: 'employee',
-    employeeId: 'KSA-4021',
-    iqama: '2418920192',
-    password: 'TariqPass@2026',
-    department: 'Sales & Field Operations (Riyadh)',
-    designation: 'Senior Sales Executive',
-    phone: '+966 50 123 4567',
-    telegramHandle: '@tariq_mansoor_ksa'
-  },
-  {
     uid: 'emp-102',
     email: 'mohammad.harbi@alfalak.sa',
     displayName: 'Mohammad Al-Harbi',

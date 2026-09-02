@@ -550,6 +550,23 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
             <Download className="w-4 h-4 text-emerald-700" />
             <span>Export CSV</span>
           </button>
+
+          {isAdmin && (
+            <button
+              onClick={async () => {
+                if (window.confirm('Are you sure you want to delete all demo expenses permanently?')) {
+                  const { purgeAllDemoExpensesFromFirestore } = await import('../lib/firebase');
+                  await purgeAllDemoExpensesFromFirestore();
+                  window.location.reload();
+                }
+              }}
+              className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200 shadow-xs"
+              title="Permanently remove all demo sample expenses from database"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Purge Demo Data</span>
+            </button>
+          )}
         </div>
       </div>
 

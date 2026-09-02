@@ -1255,7 +1255,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Tariq Al-Mansoor"
+                    placeholder="e.g. Mohammad Al-Harbi"
                     value={userNameInput}
                     onChange={(e) => setUserNameInput(e.target.value)}
                     className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -63,7 +63,7 @@ export default function App() {
       const found = INITIAL_USERS.find((u) => u.uid === savedId);
       if (found) return found;
     }
-    return INITIAL_USERS[0];
+    return null;
   });
   const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
   const [activeTab, setActiveTab] = useState<string>('chat');
@@ -91,9 +91,10 @@ export default function App() {
     const unsubUsers = subscribeUsers((userList) => {
       if (userList) {
         setUsers(userList);
-        // keep currentUser in sync if updated
-        if (currentUser) {
-          const found = userList.find((u) => u.uid === currentUser.uid);
+        // keep currentUser in sync if updated or if saved in localStorage
+        const savedId = localStorage.getItem('expenseflow_user_id');
+        if (savedId) {
+          const found = userList.find((u) => u.uid === savedId);
           if (found) {
             setCurrentUser(found);
           }
