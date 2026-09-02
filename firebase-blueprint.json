@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered app user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["employee", "approver", "admin"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Submitted expense record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "submittedVia": { "type": "string" },
+        "receiptUrl": { "type": "string", "maxLength": 500000 },
+        "receiptName": { "type": "string" },
+        "approverNotes": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "syncedToGoogleSheets": { "type": "boolean" },
+        "syncStatus": { "type": "string", "enum": ["synced", "pending", "failed"] },
+        "lastSyncAt": { "type": "string" },
+        "syncError": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "amount", "category", "description", "status"]
+    },
+    "BotQuestion": {
+      "title": "BotQuestion",
+      "description": "Custom flow question for expense bot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "order": { "type": "number" },
+        "key": { "type": "string" },
+        "questionText": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "required": { "type": "boolean" }
+      },
+      "required": ["id", "order", "key", "questionText"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application configuration and API keys",
+      "type": "object",
+      "properties": {
+        "autoSyncToSheets": { "type": "boolean" },
+        "telegramBotToken": { "type": "string" },
+        "telegramChatId": { "type": "string" },
+        "currency": { "type": "string" },
+        "companyName": { "type": "string" },
+        "aiModel": { "type": "string" }
+      }
+    },
+    "GoogleSheetsConfig": {
+      "title": "GoogleSheetsConfig",
+      "description": "Secure Google Sheets Direct API v4 configuration with encrypted service account credentials",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "projectNumber": { "type": "string" },
+        "spreadsheetId": { "type": "string" },
+        "sheetName": { "type": "string" },
+        "range": { "type": "string" },
+        "serviceAccountEmail": { "type": "string" },
+        "encryptedPrivateKey": { "type": "string" },
+        "hasEncryptedPrivateKey": { "type": "boolean" },
+        "apiKey": { "type": "string" },
+        "connectionStatus": { "type": "string", "enum": ["connected", "disconnected", "error", "untested"] },
+        "lastTestedAt": { "type": "string" },
+        "lastSyncAt": { "type": "string" },
+        "totalSynced": { "type": "number" },
+        "lastError": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["spreadsheetId", "serviceAccountEmail"]
+    },
+    "SyncLog": {
+      "title": "SyncLog",
+      "description": "Audit trail log of Google Sheets API sync events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "operation": { "type": "string" },
+        "expenseId": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "failed", "pending"] },
+        "details": { "type": "string" },
+        "error": { "type": "string" },
+        "retryCount": { "type": "number" }
+      },
+      "required": ["id", "timestamp", "operation", "status", "details"]
+    }
+  },
+  "firestore": {
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Submitted expense items"
+    },
+    "/bot_questions/{questionId}": {
+      "schema": { "$ref": "#/entities/BotQuestion" },
+      "description": "Questions configured for Telegram and Web bot"
+    },
+    "/app_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global application configuration settings and encrypted Google Sheets credentials"
+    },
+    "/sync_logs/{logId}": {
+      "schema": { "$ref": "#/entities/SyncLog" },
+      "description": "Real-time Google Sheets API sync audit logs"
+    }
+  }
+}
