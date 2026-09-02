@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppSettings } from '../types';
+import { AppSettings, LanguageMode } from '../types';
 import {
   Settings,
   Bot,
@@ -12,7 +12,8 @@ import {
   DollarSign,
   Building2,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Languages
 } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -21,6 +22,8 @@ interface SettingsModalProps {
   appSettings: AppSettings;
   onSaveSettings: (settings: AppSettings) => Promise<void>;
   onResetData: () => Promise<void>;
+  appLanguage?: LanguageMode;
+  onLanguageChange?: (lang: LanguageMode) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -28,7 +31,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   appSettings,
   onSaveSettings,
-  onResetData
+  onResetData,
+  appLanguage = 'en',
+  onLanguageChange
 }) => {
   const [formData, setFormData] = useState<AppSettings>({ ...appSettings });
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -143,6 +148,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-white border border-emerald-200 focus:ring-2 focus:ring-emerald-200 outline-hidden text-emerald-950"
                 />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-emerald-900 mb-1">System Default Language</label>
+                <select
+                  value={appLanguage}
+                  onChange={(e) => onLanguageChange?.(e.target.value as LanguageMode)}
+                  className="w-full p-2.5 rounded-xl bg-white border border-emerald-200 focus:ring-2 focus:ring-emerald-200 outline-hidden text-emerald-950 font-semibold"
+                >
+                  <option value="en">🇬🇧 English Only (Default)</option>
+                  <option value="bn">🇧🇩 Bengali Only (বাংলা)</option>
+                  <option value="ar">🇸🇦 Arabic Only (العربية)</option>
+                  <option value="bn_en">🇧🇩+🇬🇧 Bengali + English (বাংলা + English)</option>
+                  <option value="ar_en">🇸🇦+🇬🇧 Arabic + English (العربية + English)</option>
+                </select>
+                <p className="text-[11px] text-emerald-700 mt-1">
+                  Sets the default language mode for bot questions, chats, and simulator responses across the application.
+                </p>
               </div>
 
               <div className="sm:col-span-2 flex items-center gap-2 pt-1">

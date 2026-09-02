@@ -1,7 +1,8 @@
 import React from 'react';
-import { AppUser } from '../types';
+import { AppUser, LanguageMode } from '../types';
 import {
   User,
+  Users,
   MessageSquare,
   CheckSquare,
   Bot,
@@ -12,16 +13,23 @@ import {
   Sparkles,
   ShieldCheck,
   CheckCircle2,
-  FileText
+  FileText,
+  Globe,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 
 interface HeaderProps {
-  currentUser: AppUser;
+  currentUser: AppUser | null;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   pendingApprovalCount: number;
   openSettings: () => void;
   openRoleSwitcher: () => void;
+  appLanguage: LanguageMode;
+  onLanguageChange: (lang: LanguageMode) => void;
+  onLoginClick?: () => void;
+  onLogoutClick?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,10 +38,20 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   pendingApprovalCount,
   openSettings,
-  openRoleSwitcher
+  openRoleSwitcher,
+  appLanguage,
+  onLanguageChange,
+  onLoginClick,
+  onLogoutClick
 }) => {
-  const tabs = [
+  const isAdmin = currentUser?.role === 'admin';
+  const allowedTabIds = isAdmin
+    ? ['chat', 'employees', 'statements', 'approvals', 'sheets', 'telegram', 'tg_settings', 'questions']
+    : ['chat', 'statements', 'approvals'];
+
+  const allTabs = [
     { id: 'chat', label: 'Chat Entry', icon: MessageSquare, shortLabel: 'Chat' },
+    { id: 'employees', label: 'Employee', icon: Users, shortLabel: 'Employee' },
     { id: 'statements', label: 'Statements', icon: FileText, shortLabel: 'Statements' },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare, shortLabel: 'Approvals', badge: pendingApprovalCount },
     { id: 'sheets', label: 'Google Sheets', icon: FileSpreadsheet, shortLabel: 'Sheets' },
@@ -41,6 +59,9 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'tg_settings', label: 'Telegram Settings', icon: Sliders, shortLabel: 'TG Settings' },
     { id: 'questions', label: 'Bot Flow', icon: SlidersHorizontal, shortLabel: 'Flow' },
   ];
+
+  const visibleTabs = allTabs.filter((t) => allowedTabIds.includes(t.id));
+
 
   return (
     <header className="bg-white border-b border-emerald-100 sticky top-0 z-40 shadow-xs">
@@ -56,27 +77,84 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Live Sync Indicator */}
           <div className="hidden lg:flex items-center gap-1.5 text-xs text-emerald-200">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Firestore & Google Sheets Connected</span>
           </div>
 
-          {/* User Profile Switcher Button */}
-          <button
-            onClick={openRoleSwitcher}
-            className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border border-emerald-700/60 shadow-xs cursor-pointer"
-            title="Switch User Role"
-          >
-            <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
-              {currentUser.displayName.charAt(0)}
-            </div>
-            <span className="max-w-[100px] sm:max-w-none truncate">{currentUser.displayName}</span>
-            <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-md bg-emerald-500 text-emerald-950 font-bold uppercase">
-              {currentUser.role}
-            </span>
-          </button>
+          {/* App-Wide Language Selector */}
+          <div className="flex items-center gap-1.5 bg-emerald-800/90 hover:bg-emerald-800 text-white px-2.5 py-1 rounded-xl border border-emerald-700/60 shadow-xs">
+            <Globe className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+            <span className="text-xs font-bold text-emerald-200 hidden sm:inline">Lang:</span>
+            <select
+              value={appLanguage}
+              onChange={(e) => onLanguageChange(e.target.value as LanguageMode)}
+              className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer"
+              title="Select App Default Language"
+            >
+              <option value="en" className="bg-emerald-900 text-white">🇬🇧 English (Default)</option>
+              <option value="bn" className="bg-emerald-900 text-white">🇧🇩 Bengali (বাংলা)</option>
+              <option value="ar" className="bg-emerald-900 text-white">🇸🇦 Arabic (العربية)</option>
+              <option value="bn_en" className="bg-emerald-900 text-white">🇧🇩+🇬🇧 বাংলা + English</option>
+              <option value="ar_en" className="bg-emerald-900 text-white">🇸🇦+🇬🇧 العربية + English</option>
+            </select>
+          </div>
+
+          {currentUser ? (
+            <>
+              {/* User Profile / Switcher Button (Clickable only for Admin) */}
+              {isAdmin ? (
+                <button
+                  onClick={openRoleSwitcher}
+                  className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all border border-emerald-700/60 shadow-xs cursor-pointer"
+                  title="Switch User Account (Admin Only)"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                    {currentUser.displayName.charAt(0)}
+                  </div>
+                  <span className="max-w-[80px] sm:max-w-none truncate">{currentUser.displayName}</span>
+                  <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-md bg-amber-400 text-emerald-950 font-bold uppercase">
+                    {currentUser.role}
+                  </span>
+                </button>
+              ) : (
+                <div
+                  className="flex items-center gap-2 bg-emerald-900/90 text-white px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border border-emerald-700/40 shadow-xs"
+                  title={`Logged in as ${currentUser.displayName}`}
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-xs">
+                    {currentUser.displayName.charAt(0)}
+                  </div>
+                  <span className="max-w-[80px] sm:max-w-none truncate">{currentUser.displayName}</span>
+                  <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-md bg-emerald-600 text-white font-bold uppercase">
+                    {currentUser.role}
+                  </span>
+                </div>
+              )}
+
+              {/* Logout Button */}
+              {onLogoutClick && (
+                <button
+                  onClick={onLogoutClick}
+                  className="flex items-center gap-1.5 bg-rose-700 hover:bg-rose-800 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  title="Logout from account"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-200" />
+                  <span className="hidden sm:inline">লগআউট (Logout)</span>
+                </button>
+              )}
+            </>
+          ) : onLoginClick ? (
+            <button
+              onClick={onLoginClick}
+              className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-emerald-950 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-black transition-all shadow-md cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>লগইন (Login)</span>
+            </button>
+          ) : null}
 
           {/* Settings Button */}
           <button
@@ -103,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Desktop Tabs */}
         <nav className="flex items-center gap-1.5 bg-emerald-50/80 p-1.5 rounded-2xl border border-emerald-200/70">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -136,6 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-emerald-900">
             {activeTab === 'chat' && '💬 Expense Chat Assistant'}
+            {activeTab === 'employees' && '👥 Employee Directory & Credentials'}
             {activeTab === 'statements' && '📄 Employee Expense Statements'}
             {activeTab === 'approvals' && '📋 Expense Approvals'}
             {activeTab === 'sheets' && '📊 Google Sheets Sync'}

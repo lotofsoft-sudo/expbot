@@ -89,10 +89,19 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [pdfExpenses, setPdfExpenses] = useState<Expense[]>([]);
 
+  const isAdmin = currentUser.role === 'admin';
+
+  // Selectable users based on role permission
+  const selectableUsers = useMemo(() => {
+    if (isAdmin) return users;
+    const self = users.filter((u) => u.uid === currentUser.uid || u.email.toLowerCase() === currentUser.email.toLowerCase());
+    return self.length > 0 ? self : [currentUser];
+  }, [users, currentUser, isAdmin]);
+
   // The active employee object
   const activeEmployee = useMemo(() => {
-    return users.find((u) => u.uid === selectedUserId) || currentUser;
-  }, [users, selectedUserId, currentUser]);
+    return selectableUsers.find((u) => u.uid === selectedUserId) || selectableUsers[0] || currentUser;
+  }, [selectableUsers, selectedUserId, currentUser]);
 
   // Compute start and end date for current selected period
   const { periodStart, periodEnd, periodLabelBn, periodLabelEn } = useMemo(() => {
@@ -473,25 +482,32 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
           {/* Action Buttons & Employee Switcher Dropdown */}
           <div className="flex flex-wrap items-center gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-emerald-100">
             {/* Employee Selector Dropdown */}
-            <div className="relative min-w-[200px] sm:min-w-[230px]">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block mb-1">
-                এমপ্লয়ি নির্বাচন করুন (Select Employee):
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-xs"
-                >
-                  {users.map((u) => (
-                    <option key={u.uid} value={u.uid}>
-                      {u.displayName} ({u.employeeId}) — {u.department}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-emerald-700 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {isAdmin ? (
+              <div className="relative min-w-[200px] sm:min-w-[230px]">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block mb-1">
+                  এমপ্লয়ি নির্বাচন করুন (Select Employee):
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="w-full bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-xs"
+                  >
+                    {selectableUsers.map((u) => (
+                      <option key={u.uid} value={u.uid}>
+                        {u.displayName} ({u.employeeId}) — {u.department}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-emerald-700 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase text-emerald-700 block">আপনার স্টেটমেন্ট (Your Statement)</span>
+                <span className="text-xs font-bold text-emerald-950">{activeEmployee.displayName} ({activeEmployee.employeeId})</span>
+              </div>
+            )}
 
             {/* Edit / Add Employee buttons */}
             <div className="flex items-end gap-2 self-end">
@@ -504,53 +520,57 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                 <span className="hidden sm:inline">এডিট</span>
               </button>
 
-              <button
-                onClick={handleOpenAddUser}
-                className="bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-emerald-300" />
-                <span>নতুন এমপ্লয়ি</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={handleOpenAddUser}
+                  className="bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>নতুন এমপ্লয়ি</span>
+                </button>
+              )}
 
-              {onSelectCurrentUser && currentUser.uid !== activeEmployee.uid && (
+              {isAdmin && onSelectCurrentUser && currentUser.uid !== activeEmployee.uid && (
                 <button
                   onClick={() => onSelectCurrentUser(activeEmployee)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                   title="Make this user active for submitting new expenses"
                 >
-                  লগইন সুইচ
+                  স্যুইচ
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Quick Employee Pills Carousel (fast 1-click switching) */}
-        <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[11px] font-bold text-emerald-800 whitespace-nowrap">
-            কুইক সুইচ:
-          </span>
-          {users.map((u) => {
-            const isSelected = u.uid === selectedUserId;
-            return (
-              <button
-                key={u.uid}
-                onClick={() => setSelectedUserId(u.uid)}
-                className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                  isSelected
-                    ? 'bg-emerald-800 text-white shadow-xs'
-                    : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200/80'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>{u.displayName}</span>
-                <span className={`text-[10px] font-mono px-1 rounded ${isSelected ? 'bg-emerald-700 text-emerald-100' : 'bg-emerald-200 text-emerald-800'}`}>
-                  {u.employeeId}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Quick Employee Pills Carousel (Admin Only) */}
+        {isAdmin && selectableUsers.length > 1 && (
+          <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-[11px] font-bold text-emerald-800 whitespace-nowrap">
+              কুইক সুইচ:
+            </span>
+            {selectableUsers.map((u) => {
+              const isSelected = u.uid === selectedUserId;
+              return (
+                <button
+                  key={u.uid}
+                  onClick={() => setSelectedUserId(u.uid)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                    isSelected
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200/80'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>{u.displayName}</span>
+                  <span className={`text-[10px] font-mono px-1 rounded ${isSelected ? 'bg-emerald-700 text-emerald-100' : 'bg-emerald-200 text-emerald-800'}`}>
+                    {u.employeeId}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Statement Period Tabs & Controls */}
@@ -1342,7 +1362,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold shadow-md cursor-pointer"
                 >
-                  {editingUser ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
+                  {editingUser ? 'Update Employee' : 'Save Employee'}
                 </button>
               </div>
             </form>
@@ -1371,7 +1391,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-4 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
-              <h4 className="font-bold text-emerald-950 text-sm">ইনভয়েস / রসিদের ছবি</h4>
+              <h4 className="font-bold text-emerald-950 text-sm">Invoice / Receipt Photo</h4>
               <button
                 onClick={() => setReceiptModalImage(null)}
                 className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center cursor-pointer"

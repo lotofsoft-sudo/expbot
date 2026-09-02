@@ -28,7 +28,10 @@ import {
   FileCheck,
   Lock,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Pencil,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 export function getExpenseApprovalStage(exp: Expense) {
@@ -191,6 +194,8 @@ interface ApprovalDashboardProps {
   onUpdateStatus: (expenseId: string, status: ExpenseStatus, notes: string, stepToApprove?: 1 | 2 | 3) => void;
   onSyncToSheets: (expense: Expense) => void;
   onSavePdfConfig?: (newConfig: ApprovalPdfConfig) => Promise<void>;
+  onEditExpense?: (updatedExpense: Expense) => Promise<boolean>;
+  onDeleteExpense?: (expenseId: string) => Promise<boolean>;
 }
 
 export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
@@ -199,7 +204,9 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
   appSettings,
   onUpdateStatus,
   onSyncToSheets,
-  onSavePdfConfig
+  onSavePdfConfig,
+  onEditExpense,
+  onDeleteExpense
 }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -211,15 +218,44 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
   const [pdfModalOpen, setPdfModalOpen] = useState<boolean>(false);
   const [expensesForPdf, setExpensesForPdf] = useState<Expense[]>([]);
 
-  // Metrics calculations
-  const totalSubmitted = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const pendingCount = expenses.filter((e) => e.status === 'pending').length;
-  const approvedTotal = expenses
+  // Admin Edit and Delete Modal States
+  const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<Expense | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isDeletingLoading, setIsDeletingLoading] = useState<boolean>(false);
+  const [isEditingLoading, setIsEditingLoading] = useState<boolean>(false);
+
+  // Form states for Edit Expense Modal
+  const [editAmount, setEditAmount] = useState<string>('');
+  const [editCategory, setEditCategory] = useState<string>('');
+  const [editDescription, setEditDescription] = useState<string>('');
+  const [editDate, setEditDate] = useState<string>('');
+  const [editDepartment, setEditDepartment] = useState<string>('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState<string>('');
+  const [editVatStatus, setEditVatStatus] = useState<string>('');
+  const [editProject, setEditProject] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<ExpenseStatus>('pending');
+
+  const isAdmin = currentUser.role === 'admin';
+
+  // Role-based data isolation: Regular employees only see their own approvals / expenses
+  const roleExpenses = isAdmin
+    ? expenses
+    : expenses.filter(
+        (e) =>
+          e.userId === currentUser.uid ||
+          (e.userEmail && e.userEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+          (e.userName && e.userName.toLowerCase() === currentUser.displayName.toLowerCase())
+      );
+
+  // Metrics calculations based on roleExpenses
+  const totalSubmitted = roleExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const pendingCount = roleExpenses.filter((e) => e.status === 'pending').length;
+  const approvedTotal = roleExpenses
     .filter((e) => e.status === 'approved')
     .reduce((acc, curr) => acc + curr.amount, 0);
-  const rejectedCount = expenses.filter((e) => e.status === 'rejected').length;
+  const rejectedCount = roleExpenses.filter((e) => e.status === 'rejected').length;
 
-  const filteredExpenses = expenses.filter((e) => {
+  const filteredExpenses = roleExpenses.filter((e) => {
     const matchesStatus = filterStatus === 'all' || e.status === filterStatus;
     const query = searchQuery.toLowerCase().trim();
     if (!query) return matchesStatus;
@@ -235,6 +271,49 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
       (e.batchId && e.batchId.toLowerCase().includes(query));
     return matchesStatus && matchesSearch;
   });
+
+  const handleOpenEditModal = (exp: Expense) => {
+    setEditingExpense(exp);
+    setEditAmount(String(exp.amount || exp.totalAmount || 0));
+    setEditCategory(exp.category || '');
+    setEditDescription(exp.description || '');
+    setEditDate(exp.date || '');
+    setEditDepartment(exp.department || '');
+    setEditPaymentMethod(exp.paymentMethod || 'Cash');
+    setEditVatStatus(exp.vatStatus || 'Without VAT');
+    setEditProject(exp.project || 'General');
+    setEditStatus(exp.status || 'pending');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmExpense || !onDeleteExpense) return;
+    setIsDeletingLoading(true);
+    await onDeleteExpense(deleteConfirmExpense.id);
+    setIsDeletingLoading(false);
+    setDeleteConfirmExpense(null);
+  };
+
+  const handleSaveEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !onEditExpense) return;
+    setIsEditingLoading(true);
+    const updated: Expense = {
+      ...editingExpense,
+      amount: Number(editAmount),
+      totalAmount: Number(editAmount),
+      category: editCategory,
+      description: editDescription,
+      date: editDate,
+      department: editDepartment,
+      paymentMethod: editPaymentMethod,
+      vatStatus: editVatStatus,
+      project: editProject,
+      status: editStatus
+    };
+    await onEditExpense(updated);
+    setIsEditingLoading(false);
+    setEditingExpense(null);
+  };
 
   const handleStepAction = (expenseId: string, status: ExpenseStatus, stepToApprove?: 1 | 2 | 3) => {
     onUpdateStatus(expenseId, status, approverNotesInput, stepToApprove);
@@ -563,17 +642,75 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                     )}
 
                     {stage.isFullyApproved ? (
-                      <button
-                        onClick={() => handleOpenSinglePdf(exp)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs cursor-pointer ml-auto"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>📄 Approval PDF</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mr-1">
+                            <button
+                              onClick={() => handleOpenEditModal(exp)}
+                              className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmExpense(exp)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleOpenSinglePdf(exp)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>📄 Approval PDF</span>
+                        </button>
+                      </div>
                     ) : stage.isRejected ? (
-                      <span className="text-xs text-rose-600 font-semibold ml-auto">Rejected</span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mr-1">
+                            <button
+                              onClick={() => handleOpenEditModal(exp)}
+                              className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmExpense(exp)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <span className="text-xs text-rose-600 font-semibold">Rejected</span>
+                      </div>
                     ) : stage.currentStep === 1 ? (
                       <div className="flex items-center gap-2 ml-auto">
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mr-1">
+                            <button
+                              onClick={() => handleOpenEditModal(exp)}
+                              className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmExpense(exp)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                         <button
                           onClick={() => handleStepAction(exp.id, 'pending', 1)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
@@ -589,6 +726,24 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                       </div>
                     ) : stage.currentStep === 2 ? (
                       <div className="flex items-center gap-2 ml-auto">
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mr-1">
+                            <button
+                              onClick={() => handleOpenEditModal(exp)}
+                              className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmExpense(exp)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                         <button
                           onClick={() => handleStepAction(exp.id, 'pending', 2)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
@@ -604,6 +759,24 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 ml-auto">
+                        {isAdmin && (
+                          <div className="flex items-center gap-1 mr-1">
+                            <button
+                              onClick={() => handleOpenEditModal(exp)}
+                              className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmExpense(exp)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                         <button
                           onClick={() => handleStepAction(exp.id, 'approved', 3)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs flex items-center gap-1 shadow-md cursor-pointer ring-2 ring-emerald-400"
@@ -761,8 +934,27 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
 
                       {/* PDF Voucher Button / Approver Actions */}
                       <td className="p-3 text-right pr-5 whitespace-nowrap">
-                        {stage.isFullyApproved ? (
-                          <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2">
+                          {isAdmin && (
+                            <div className="flex items-center gap-1 border-r border-emerald-200 pr-2 my-auto">
+                              <button
+                                onClick={() => handleOpenEditModal(exp)}
+                                className="p-1.5 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Expense Details"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmExpense(exp)}
+                                className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Expense"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+
+                          {stage.isFullyApproved ? (
                             <button
                               onClick={() => handleOpenSinglePdf(exp)}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
@@ -771,20 +963,62 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                               <FileText className="w-3.5 h-3.5" />
                               <span>📄 Approval PDF</span>
                             </button>
-                          </div>
-                        ) : stage.isRejected ? (
-                          <span className="text-xs text-rose-600 font-semibold">
-                            Rejected
-                          </span>
-                        ) : stage.currentStep === 1 ? (
-                          <div className="flex flex-col items-end gap-1">
+                          ) : stage.isRejected ? (
+                            <span className="text-xs text-rose-600 font-semibold">
+                              Rejected
+                            </span>
+                          ) : stage.currentStep === 1 ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleStepAction(exp.id, 'pending', 1)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                                  title="Approve Step 1: Abdulaziz"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Approve Step 1 (Abdulaziz)
+                                </button>
+                                <button
+                                  onClick={() => handleStepAction(exp.id, 'rejected')}
+                                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                                >
+                                  <X className="w-3.5 h-3.5" /> Reject
+                                </button>
+                              </div>
+                              <div className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5 text-amber-600" />
+                                <span>Final Approval (Nurul Alam) locked</span>
+                              </div>
+                            </div>
+                          ) : stage.currentStep === 2 ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleStepAction(exp.id, 'pending', 2)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                                  title="Approve Step 2: Bulbul Mashrequi"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Approve Step 2 (Bulbul)
+                                </button>
+                                <button
+                                  onClick={() => handleStepAction(exp.id, 'rejected')}
+                                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                                >
+                                  <X className="w-3.5 h-3.5" /> Reject
+                                </button>
+                              </div>
+                              <div className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5 text-amber-600" />
+                                <span>Final Approval (Nurul Alam) locked</span>
+                              </div>
+                            </div>
+                          ) : (
                             <div className="flex items-center justify-end gap-1.5">
                               <button
-                                onClick={() => handleStepAction(exp.id, 'pending', 1)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                                title="Approve Step 1: Abdulaziz"
+                                onClick={() => handleStepAction(exp.id, 'approved', 3)}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black transition-all shadow-md cursor-pointer flex items-center gap-1.5 ring-2 ring-emerald-400"
+                                title="Final Approval: Nurul Alam"
                               >
-                                <Check className="w-3.5 h-3.5" /> Approve Step 1 (Abdulaziz)
+                                <ShieldCheck className="w-4 h-4 text-emerald-300" /> Final Approve (Nurul Alam)
                               </button>
                               <button
                                 onClick={() => handleStepAction(exp.id, 'rejected')}
@@ -793,50 +1027,8 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                                 <X className="w-3.5 h-3.5" /> Reject
                               </button>
                             </div>
-                            <div className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5 text-amber-600" />
-                              <span>Final Approval (Nurul Alam) locked</span>
-                            </div>
-                          </div>
-                        ) : stage.currentStep === 2 ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleStepAction(exp.id, 'pending', 2)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                                title="Approve Step 2: Bulbul Mashrequi"
-                              >
-                                <Check className="w-3.5 h-3.5" /> Approve Step 2 (Bulbul)
-                              </button>
-                              <button
-                                onClick={() => handleStepAction(exp.id, 'rejected')}
-                                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                              >
-                                <X className="w-3.5 h-3.5" /> Reject
-                              </button>
-                            </div>
-                            <div className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5 text-amber-600" />
-                              <span>Final Approval (Nurul Alam) locked</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleStepAction(exp.id, 'approved', 3)}
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black transition-all shadow-md cursor-pointer flex items-center gap-1.5 ring-2 ring-emerald-400"
-                              title="Final Approval: Nurul Alam"
-                            >
-                              <ShieldCheck className="w-4 h-4 text-emerald-300" /> Final Approve (Nurul Alam)
-                            </button>
-                            <button
-                              onClick={() => handleStepAction(exp.id, 'rejected')}
-                              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                            >
-                              <X className="w-3.5 h-3.5" /> Reject
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -880,6 +1072,215 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
         appSettings={appSettings}
         onSavePdfConfig={onSavePdfConfig}
       />
+
+      {/* Admin Delete Confirmation Modal */}
+      {deleteConfirmExpense && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-rose-200">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-stone-900">Confirm Expense Deletion</h3>
+                <p className="text-xs text-stone-500">Admin Expense Management</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 p-3.5 rounded-2xl border border-rose-100 space-y-1 text-xs text-stone-700">
+              <p>
+                Are you sure you want to delete expense voucher <strong className="font-mono text-stone-900">{deleteConfirmExpense.id}</strong>?
+              </p>
+              <div className="pt-2 font-medium space-y-0.5 text-stone-800">
+                <p>• <strong>Claimant:</strong> {deleteConfirmExpense.userName}</p>
+                <p>• <strong>Category:</strong> {deleteConfirmExpense.category}</p>
+                <p>• <strong>Amount:</strong> {deleteConfirmExpense.amount.toFixed(2)} SAR</p>
+                <p>• <strong>Date:</strong> {deleteConfirmExpense.date}</p>
+              </div>
+              <p className="pt-2 text-[11px] text-rose-700 font-semibold">
+                ⚠️ This action cannot be undone and will permanently remove this record.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmExpense(null)}
+                className="px-4 py-2 rounded-xl text-stone-700 font-bold hover:bg-stone-100 border border-stone-200 text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingLoading}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeletingLoading ? 'Deleting...' : 'Yes, Confirm Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Edit Expense Modal */}
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-emerald-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+              <div>
+                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide block">
+                  Admin Expense Editor
+                </span>
+                <h3 className="text-lg font-bold text-emerald-950">
+                  Edit Expense #{editingExpense.id}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingExpense(null)}
+                className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditSubmit} className="space-y-4 text-xs sm:text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Amount */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Amount (SAR) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Date */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Category */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-bold text-emerald-900 block">Category *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-bold text-emerald-900 block">Description *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Department */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Department</label>
+                  <input
+                    type="text"
+                    value={editDepartment}
+                    onChange={(e) => setEditDepartment(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Project */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Project</label>
+                  <input
+                    type="text"
+                    value={editProject}
+                    onChange={(e) => setEditProject(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Payment Method */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Payment Method</label>
+                  <select
+                    value={editPaymentMethod}
+                    onChange={(e) => setEditPaymentMethod(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="Cash">Cash (ক্যাশ)</option>
+                    <option value="Bank Transfer">Bank Transfer (ব্যাংক ট্রান্সফার)</option>
+                    <option value="Credit Card">Credit Card (ক্রেডিট কার্ড)</option>
+                    <option value="Company Card">Company Card</option>
+                  </select>
+                </div>
+
+                {/* VAT Status */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">VAT Status</label>
+                  <select
+                    value={editVatStatus}
+                    onChange={(e) => setEditVatStatus(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="With VAT (15%)">With VAT (15%)</option>
+                    <option value="Without VAT">Without VAT</option>
+                  </select>
+                </div>
+
+                {/* Approval Status */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-bold text-emerald-900 block">Approval Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as ExpenseStatus)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="pending">Pending Review (অপেক্ষমান)</option>
+                    <option value="approved">Approved (অনুমোদিত)</option>
+                    <option value="rejected">Rejected (বাতিল)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-emerald-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="px-4 py-2 rounded-xl text-emerald-800 font-bold hover:bg-emerald-50 border border-emerald-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditingLoading}
+                  className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {isEditingLoading ? 'Saving...' : 'Save Expense Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

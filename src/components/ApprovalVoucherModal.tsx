@@ -58,7 +58,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   const [companyName, setCompanyName] = useState<string>(baseConfig.companyName || 'Wafaq Company');
   const [dateRequest, setDateRequest] = useState<string>(primaryExpense.date || todayStr);
   const [paymentMonth, setPaymentMonth] = useState<string>(defaultPeriodLabel || currentMonthName);
-  const [requiredDate, setRequiredDate] = useState<string>(reqDateStr);
+  const [requiredDate, setRequiredDate] = useState<string>(primaryExpense.date || todayStr);
   const [expansesBy, setExpansesBy] = useState<string>(
     primaryExpense.userName
       ? `${primaryExpense.userName}${primaryExpense.employeeId ? ` (${primaryExpense.employeeId})` : ''}`
@@ -115,7 +115,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
       setCompanyName(baseConfig.companyName || 'Wafaq Company');
       setDateRequest(pExp.date || todayStr);
       setPaymentMonth(defaultPeriodLabel || currentMonthName);
-      setRequiredDate(reqDateStr);
+      setRequiredDate(pExp.date || todayStr);
       setExpansesBy(
         pExp.userName
           ? `${pExp.userName}${pExp.employeeId ? ` (${pExp.employeeId})` : ''}`
@@ -154,9 +154,9 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
     setProjectName('Head office');
     setMprNo('');
     setCompanyName('Wafaq Company');
-    setDateRequest(todayStr);
+    setDateRequest(primaryExpense.date || todayStr);
     setPaymentMonth(currentMonthName);
-    setRequiredDate(reqDateStr);
+    setRequiredDate(primaryExpense.date || todayStr);
     setExpansesBy(primaryExpense.userName || '');
     setCompanyAddress('P.O. Box 2481, Riyadh 12611, Riyadh, KSA. TelFax: 0112319609');
     setPreparedBy('Fazley Elahi Azim');
@@ -201,7 +201,46 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      const container = document.getElementById('excel-landscape-container');
+      if (container) {
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Approval Voucher - ${mprNo || 'Print'}</title>
+                <style>
+                  @page { size: landscape; margin: 4mm; }
+                  body { margin: 0; padding: 12px; font-family: Calibri, Arial, sans-serif; background: #ffffff; color: #000000; }
+                  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+                  img { max-height: 70px; width: auto; object-fit: contain; }
+                  @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  }
+                </style>
+              </head>
+              <body>
+                ${container.outerHTML}
+                <script>
+                  setTimeout(function() {
+                    window.focus();
+                    window.print();
+                  }, 300);
+                </script>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+          return;
+        }
+      }
+      window.print();
+    } catch (err) {
+      console.warn('Direct print window pop-up blocked or failed, falling back to PDF download:', err);
+      handleDownloadPdf();
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -413,7 +452,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
         <div className="w-full max-w-[1180px] bg-white p-4 rounded-xl border border-slate-300 shadow-xl mb-4 no-print text-xs space-y-3">
           <div className="flex items-center justify-between border-b pb-2">
             <span className="font-bold text-slate-800 text-sm">
-              ✏️ প্রিন্ট বা ডাউনলোডের পূর্বে নাম ও টেক্সট পরিবর্তন করুন
+              ✏️ Edit Names and Information Before Printing or Downloading PDF
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -422,7 +461,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                 className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>রিসেট</span>
+                <span>Reset</span>
               </button>
               <button
                 type="button"
@@ -431,7 +470,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                 className="flex items-center gap-1 px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
               >
                 <Save className="w-3 h-3" />
-                <span>{isSaving ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট সেভ করুন'}</span>
+                <span>{isSaving ? 'Saving...' : 'Save as Default'}</span>
               </button>
             </div>
           </div>
@@ -469,7 +508,10 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               <input
                 type="text"
                 value={dateRequest}
-                onChange={(e) => setDateRequest(e.target.value)}
+                onChange={(e) => {
+                  setDateRequest(e.target.value);
+                  setRequiredDate(e.target.value);
+                }}
                 className="w-full p-1.5 border border-slate-300 rounded text-slate-900"
               />
             </div>
@@ -512,7 +554,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
           </div>
 
           <div className="pt-2 border-t border-slate-200">
-            <span className="font-bold text-slate-700 block mb-1.5">অনুমোদনকারী ও স্বাক্ষরকারীদের নাম:</span>
+            <span className="font-bold text-slate-700 block mb-1.5">Approver & Signatory Names:</span>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <div>
                 <label className="block text-slate-500 text-[11px] mb-0.5">Prepared By</label>
@@ -560,7 +602,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-slate-500 text-[11px] mb-0.5">Requested by (ইনপুটকারী)</label>
+                <label className="block text-slate-500 text-[11px] mb-0.5">Requested by</label>
                 <input
                   type="text"
                   value={requestedBy}
@@ -704,11 +746,15 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               >
                 <div className="flex flex-col items-center justify-center space-y-1">
                   <img
-                    src="/company_logo.jpg"
-                    alt="Company Logo"
-                    className="max-h-16 w-auto object-contain mx-auto"
+                    src={baseConfig.logoUrl || '/company_logo.svg'}
+                    alt="WAFAQ Company Logo"
+                    className="max-h-20 w-auto object-contain mx-auto"
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
+                      const img = e.target as HTMLImageElement;
+                      if (!img.src.includes('company_logo.svg')) {
+                        img.src = '/company_logo.svg';
+                      }
                     }}
                   />
                   <div

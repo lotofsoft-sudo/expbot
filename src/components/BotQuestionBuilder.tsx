@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BotQuestion, QuestionType, LanguageMode } from '../types';
 import { DEFAULT_BOT_QUESTIONS } from '../data/defaultQuestions';
 import {
@@ -23,21 +23,34 @@ interface BotQuestionBuilderProps {
   questions: BotQuestion[];
   onSaveQuestions: (updated: BotQuestion[]) => void;
   onResetDefaults: () => void;
+  appLanguage?: LanguageMode;
+  onLanguageChange?: (lang: LanguageMode) => void;
 }
 
 export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
   questions,
   onSaveQuestions,
-  onResetDefaults
+  onResetDefaults,
+  appLanguage = 'en',
+  onLanguageChange
 }) => {
   const [questionList, setQuestionList] = useState<BotQuestion[]>(questions);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [selectedLangMode, setSelectedLangMode] = useState<LanguageMode>('bn_en');
+  const [selectedLangMode, setSelectedLangMode] = useState<LanguageMode>(appLanguage || 'en');
 
   // Format question text based on active language mode
   const getDisplayQuestionText = (q: BotQuestion, mode: LanguageMode): string => {
     const num = q.order;
+    if (mode === 'en') {
+      return `${num}. ${q.questionEn || q.questionText}`;
+    }
+    if (mode === 'bn') {
+      return `${num}. ${q.questionBn || q.questionText}`;
+    }
+    if (mode === 'ar') {
+      return `${num}. ${q.questionAr || q.questionText}`;
+    }
     if (mode === 'bn_en') {
       const bn = q.questionBn || q.questionText;
       const en = q.questionEn || '';
@@ -48,21 +61,22 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
       const en = q.questionEn || '';
       return en ? `${num}. ${ar} / ${en}` : `${num}. ${ar}`;
     }
-    if (mode === 'bn') {
-      return `${num}. ${q.questionBn || q.questionText}`;
-    }
-    if (mode === 'ar') {
-      return `${num}. ${q.questionAr || q.questionText}`;
-    }
-    if (mode === 'en') {
-      return `${num}. ${q.questionEn || q.questionText}`;
-    }
     return q.questionText;
   };
 
+  useEffect(() => {
+    if (appLanguage && appLanguage !== selectedLangMode) {
+      setSelectedLangMode(appLanguage);
+      handleLanguageModeChange(appLanguage as LanguageMode);
+    }
+  }, [appLanguage]);
+
   const handleLanguageModeChange = (mode: LanguageMode) => {
     setSelectedLangMode(mode);
-    // Optionally update the active questionText to match the chosen format
+    if (onLanguageChange) {
+      onLanguageChange(mode);
+    }
+    // Update questionText to match chosen format
     const updated = questionList.map((q) => ({
       ...q,
       questionText: getDisplayQuestionText(q, mode)
@@ -161,7 +175,7 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
             <span>Bot Question Sequence & Multilingual Flow</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-emerald-950 mt-1">
-            Expense Bot Questions (৯টি নির্ধারিত প্রশ্ন ও ক্রম)
+            Expense Bot Questions (৮টি নির্ধারিত প্রশ্ন ও ক্রম)
           </h2>
           <p className="text-xs text-emerald-700 mt-0.5">
             Web Chat Bot ও Telegram Bot উভয়েই কর্মচারীকে এই প্রশ্নগুলো ক্রমান্বয়ে করবে। যেকোনো প্রশ্ন এডিট বা নতুন প্রশ্ন যোগ করা যাবে।
@@ -175,7 +189,7 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
             title="Reset to 9 standard required questions"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Reset 9 Questions (ডিফল্ট প্রশ্ন)</span>
+            <span>Reset 8 Questions (ডিফল্ট প্রশ্ন)</span>
           </button>
 
           <button
@@ -210,11 +224,11 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
 
         <div className="flex flex-wrap gap-1.5">
           {[
-            { id: 'bn_en', label: '🇧🇩 + 🇬🇧 বাংলা + English' },
-            { id: 'ar_en', label: '🇸🇦 + 🇬🇧 العربية + English' },
+            { id: 'en', label: '🇬🇧 English Only (Default)' },
             { id: 'bn', label: '🇧🇩 বাংলা Only' },
-            { id: 'en', label: '🇬🇧 English Only' },
-            { id: 'ar', label: '🇸🇦 العربية Only' }
+            { id: 'ar', label: '🇸🇦 العربية Only' },
+            { id: 'bn_en', label: '🇧🇩 + 🇬🇧 বাংলা + English' },
+            { id: 'ar_en', label: '🇸🇦 + 🇬🇧 العربية + English' }
           ].map((lang) => (
             <button
               key={lang.id}

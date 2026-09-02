@@ -9,6 +9,8 @@ import {
   getSpreadsheetData,
   resolveBackendConfig,
   normalizePrivateKey,
+  extractPrivateKey,
+  formatGoogleError,
   BackendGoogleSheetsConfig
 } from './server/googleSheetsService';
 
@@ -212,7 +214,7 @@ app.post('/api/telegram/send-test', async (req, res) => {
   }
 });
 
-// In-memory Telegram chat session tracker for 9-step expense flow
+// In-memory Telegram chat session tracker for 8-step expense flow
 interface TelegramChatSession {
   stepIndex: number;
   answers: {
@@ -235,85 +237,78 @@ interface TelegramChatSession {
 
 const telegramSessions = new Map<string, TelegramChatSession>();
 
-const TG_9_QUESTIONS = [
+const TG_8_QUESTIONS = [
   {
     step: 0,
     key: 'amount',
-    title: '১. আপনার কত টাকা খরচ হয়েছে অথবা আপনি কত টাকা খরচ করতে চাচ্ছেন?',
-    subtitle: '1. How much money was spent or do you want to spend? (SAR)',
+    title: '1. How much money was spent or do you want to spend? (SAR)',
+    subtitle: 'Enter expense amount in SAR',
     keyboard: [['50 SAR', '100 SAR', '150 SAR'], ['250 SAR', '500 SAR', '1000 SAR']]
   },
   {
     step: 1,
     key: 'category',
-    title: '২. এই খরচটি কেন হয়েছে অথবা আপনি এই খরচটি কেন করতে চাচ্ছেন?',
-    subtitle: '2. Why was this expense incurred or why do you want to incur it?',
+    title: '2. Why was this expense incurred or why do you want to incur it?',
+    subtitle: 'Select purpose or category',
     keyboard: [
-      ['Travel & Transport (যাতায়াত)', 'Client Dining & Meals (আপ্যায়ন)'],
-      ['Office Supplies (অফিস সামগ্রী)', 'Software & Cloud (সফটওয়্যার)'],
-      ['Hotel & Accommodation (হোটেল)', 'Fuel & Maintenance (জ্বালানি)'],
-      ['Miscellaneous Business (অন্যান্য ব্যবসায়িক খরচ)']
+      ['Travel & Transport', 'Client Dining & Meals'],
+      ['Office Supplies', 'Software & Cloud Services'],
+      ['Hotel & Accommodation', 'Fuel & Vehicle Maintenance'],
+      ['Miscellaneous Business']
     ]
   },
   {
     step: 2,
     key: 'description',
-    title: '৩. আপনার খরচের বর্ণনা লিখুন । বিস্তারিতভাবে লিখুন ।',
-    subtitle: '3. Write the description of your expense in detail.',
+    title: '3. Write the description of your expense in detail.',
+    subtitle: 'Write detailed business context',
     keyboard: []
   },
   {
     step: 3,
-    key: 'totalAmount',
-    title: '৪. আপনার খরচের মূল্য পরিমাণ কত, টাকার পরিমাণ কত?',
-    subtitle: '4. What is the total value / cost amount of your expense? (SAR)',
-    keyboard: []
+    key: 'vatStatus',
+    title: '4. Does this expense include VAT or is it without VAT?',
+    subtitle: 'Specify VAT status',
+    keyboard: [
+      ['With VAT', 'Without VAT']
+    ]
   },
   {
     step: 4,
-    key: 'vatStatus',
-    title: '৫. এই খরচটিতে কি কোনো ভ্যাট আছে নাকি উইদাউট ভ্যাট?',
-    subtitle: '5. Does this expense include VAT or is it without VAT?',
+    key: 'paymentMethod',
+    title: '5. Will this expense be paid in Cash or Bank transfer?',
+    subtitle: 'Select payment mode',
     keyboard: [
-      ['With VAT (ভ্যাট সহ)', 'Without VAT (উইদাউট ভ্যাট)']
+      ['Cash', 'Bank Transfer']
     ]
   },
   {
     step: 5,
-    key: 'paymentMethod',
-    title: '৬. এই খরচটি কি ক্যাশে হবে নাকি ব্যাংকে হবে?',
-    subtitle: '6. Will this expense be paid in Cash or Bank transfer?',
-    keyboard: [
-      ['Cash (ক্যাশ)', 'Bank Transfer (ব্যাংক ট্রান্সফার)']
-    ]
-  },
-  {
-    step: 6,
     key: 'project',
-    title: '৭. এই খরচটি কোন প্রজেক্ট রিলেটেড?',
-    subtitle: '7. Which project is this expense related to?',
+    title: '6. Which project is this expense related to?',
+    subtitle: 'Enter project name',
     keyboard: [
       ['Riyadh Metro Project', 'HQ Operations'],
       ['Marketing Campaign', 'General Project']
     ]
   },
   {
-    step: 7,
+    step: 6,
     key: 'approvedBy',
-    title: '৮. আপনার এই খরচটির অ্যাপ্রুভাল কে দিয়েছে?',
-    subtitle: '8. Who approved this expense?',
+    title: '7. Who approved this expense?',
+    subtitle: 'Name or role of approving manager',
     keyboard: [
       ['Finance Manager', 'Faisal Al-Otaibi'],
       ['Project Manager', 'Department Head']
     ]
   },
   {
-    step: 8,
+    step: 7,
     key: 'receiptUrl',
-    title: '৯. আপনার ইনভয়সটির ছবি দিন ।',
-    subtitle: '9. Please send a photo of your invoice / receipt (or click No Receipt / Skip).',
+    title: '8. Please send a photo of your invoice / receipt (or click No Receipt / Skip).',
+    subtitle: 'Upload receipt image or skip',
     keyboard: [
-      ['📸 No Receipt Available / Skip (রসিদ নেই)']
+      ['📸 No Receipt Available / Skip']
     ]
   }
 ];
@@ -390,8 +385,8 @@ app.post('/api/telegram/webhook', async (req, res) => {
       session.sessionExpenses = [];
       session.awaitingMoreChoice = false;
 
-      const q1 = TG_9_QUESTIONS[0];
-      const reply = `স্বাগতম ${sender}! 👋 Welcome to ExpenseFlow Saudi Arabia Bot (SAR Only).\n\nনির্ধারিত ৯টি প্রশ্নের উত্তর দিয়ে সহজে খরচ জমা দিন:\n\nExpense #1:\n${q1.title}\n${q1.subtitle}`;
+      const q1 = TG_8_QUESTIONS[0];
+      const reply = `Welcome ${sender}! 👋 Welcome to ExpenseFlow Saudi Arabia Bot (SAR Only).\n\nSubmit single or multiple expenses by answering 8 standard questions:\n\nExpense #1:\n${q1.title}\n${q1.subtitle}`;
       
       await sendTelegramBotReply(chatId, reply, q1.keyboard);
 
@@ -409,13 +404,13 @@ app.post('/api/telegram/webhook', async (req, res) => {
     }
 
     if (lower === '/status') {
-      const reply = `🟢 ExpenseFlow Bot is online.\n• Database: Firebase Firestore\n• Sheets: Google Sheets Synchronized\n• Currency: SAR (Saudi Riyal)\n• Current Flow: 9 Standard Expense Questions`;
+      const reply = `🟢 ExpenseFlow Bot is online.\n• Database: Firebase Firestore\n• Sheets: Google Sheets Synchronized\n• Currency: SAR (Saudi Riyal)\n• Current Flow: 8 Standard Expense Questions`;
       await sendTelegramBotReply(chatId, reply);
       return res.json({ ok: true, result: { text: reply } });
     }
 
     if (lower === '/help') {
-      const reply = `📖 Telegram Bot Commands:\n/start - Start expense submission\n/new - Start fresh 9-question expense flow\n/pdf - View approved PDF vouchers\n/status - System status\n\nআপনি নির্ধারিত ৯টি প্রশ্নের মাধ্যমে একক বা একসাথে একাধিক খরচ জমা দিতে পারবেন।`;
+      const reply = `📖 Telegram Bot Commands:\n/start - Start expense submission\n/new - Start fresh 8-question expense flow\n/pdf - View approved PDF vouchers\n/status - System status\n\nYou can submit single or multiple expenses sequentially using 8 standard questions.`;
       await sendTelegramBotReply(chatId, reply);
       return res.json({ ok: true, result: { text: reply } });
     }
@@ -428,34 +423,34 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
     // 2. Handle "Another Expense" decision state
     if (session.awaitingMoreChoice) {
-      if (lower.includes('yes') || lower.includes('add') || lower.includes('হ্যাঁ') || lower.includes('আরেকটি')) {
+      if (lower.includes('yes') || lower.includes('add') || lower.includes('another')) {
         session.awaitingMoreChoice = false;
         session.stepIndex = 0;
         session.answers = { date: new Date().toISOString().split('T')[0] };
 
         const nextItemNum = session.sessionExpenses.length + 1;
-        const q1 = TG_9_QUESTIONS[0];
+        const q1 = TG_8_QUESTIONS[0];
         const reply = `➕ Starting Expense #${nextItemNum} in this session:\n\n${q1.title}\n${q1.subtitle}`;
         await sendTelegramBotReply(chatId, reply, q1.keyboard);
         return res.json({ ok: true });
-      } else if (lower.includes('no') || lower.includes('done') || lower.includes('না') || lower.includes('finalize') || lower.includes('সম্পন্ন')) {
+      } else if (lower.includes('no') || lower.includes('done') || lower.includes('finalize')) {
         session.awaitingMoreChoice = false;
         const totalSum = session.sessionExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
         const count = session.sessionExpenses.length;
         const reply = `🎉 Session Finalized Successfully!\n\n📋 Total Expenses Submitted: ${count}\n💵 Grand Total: ${totalSum.toFixed(2)} SAR\n\nAll items are securely saved in Firebase Firestore and synchronized to Google Sheets. In the Expense Ledger, they are listed as separate entries for individual approval.\n\nType /new anytime to record a new expense.`;
         
         session.sessionExpenses = [];
-        await sendTelegramBotReply(chatId, reply, [['/new (নতুন খরচ জমা দিন)']]);
+        await sendTelegramBotReply(chatId, reply, [['/new (Submit New Expense)']]);
         return res.json({ ok: true });
       }
     }
 
-    // 3. Process the 9 Questions Step-by-Step
-    const currentQ = TG_9_QUESTIONS[session.stepIndex];
+    // 3. Process the 8 Questions Step-by-Step
+    const currentQ = TG_8_QUESTIONS[session.stepIndex];
     if (!currentQ) {
       // Fallback: restart flow
       session.stepIndex = 0;
-      const q1 = TG_9_QUESTIONS[0];
+      const q1 = TG_8_QUESTIONS[0];
       await sendTelegramBotReply(chatId, `Expense #1:\n${q1.title}\n${q1.subtitle}`, q1.keyboard);
       return res.json({ ok: true });
     }
@@ -475,30 +470,23 @@ app.post('/api/telegram/webhook', async (req, res) => {
     else if (currentQ.key === 'description') {
       session.answers.description = rawText || 'Expense description';
     }
-    // Q4: Total Cost Amount Confirmation
-    else if (currentQ.key === 'totalAmount') {
-      const num = parseFloat(rawText.replace(/[^0-9.]/g, ''));
-      const val = isNaN(num) ? (session.answers.amount || 50) : num;
-      session.answers.totalAmount = val;
-      if (!session.answers.amount) session.answers.amount = val;
-    }
-    // Q5: VAT Status
+    // Q4: VAT Status
     else if (currentQ.key === 'vatStatus') {
-      session.answers.vatStatus = rawText || 'Without VAT (উইদাউট ভ্যাট)';
+      session.answers.vatStatus = rawText || 'Without VAT';
     }
-    // Q6: Payment Method
+    // Q5: Payment Method
     else if (currentQ.key === 'paymentMethod') {
-      session.answers.paymentMethod = rawText || 'Cash (ক্যাশ)';
+      session.answers.paymentMethod = rawText || 'Cash';
     }
-    // Q7: Related Project
+    // Q6: Related Project
     else if (currentQ.key === 'project') {
       session.answers.project = rawText || 'General Project';
     }
-    // Q8: Approver Name
+    // Q7: Approver Name
     else if (currentQ.key === 'approvedBy') {
       session.answers.approvedBy = rawText || 'Finance Manager';
     }
-    // Q9: Invoice Photo
+    // Q8: Invoice Photo
     else if (currentQ.key === 'receiptUrl') {
       if (photos && photos.length > 0) {
         const largestPhoto = photos[photos.length - 1];
@@ -507,30 +495,26 @@ app.post('/api/telegram/webhook', async (req, res) => {
       } else if (doc) {
         session.answers.receiptUrl = `telegram_doc_id:${doc.file_id}`;
         session.answers.receiptName = doc.file_name || 'Telegram Document';
-      } else if (rawText && !lower.includes('skip') && !lower.includes('না') && !lower.includes('নেই')) {
+      } else if (rawText && !lower.includes('skip')) {
         session.answers.receiptUrl = rawText;
       }
     }
 
     const nextIndex = session.stepIndex + 1;
 
-    if (nextIndex < TG_9_QUESTIONS.length) {
+    if (nextIndex < TG_8_QUESTIONS.length) {
       session.stepIndex = nextIndex;
-      const nextQ = TG_9_QUESTIONS[nextIndex];
+      const nextQ = TG_8_QUESTIONS[nextIndex];
       const itemNum = session.sessionExpenses.length + 1;
 
-      // Dynamic keyboard for Q4 (Total Amount confirmation)
       let dynamicKeyboard = nextQ.keyboard;
-      if (nextQ.key === 'totalAmount' && session.answers.amount) {
-        dynamicKeyboard = [[`${session.answers.amount} SAR (Confirm)`, `${session.answers.amount}`]];
-      }
 
       const reply = `Expense #${itemNum}:\n${nextQ.title}\n${nextQ.subtitle}`;
       await sendTelegramBotReply(chatId, reply, dynamicKeyboard);
 
       return res.json({ ok: true, result: { text: reply } });
     } else {
-      // Completed all 9 questions -> Finalize this item
+      // Completed all 8 questions -> Finalize this item
       const itemNum = session.sessionExpenses.length + 1;
       const finalAmount = session.answers.amount || session.answers.totalAmount || 50;
       const expId = `EXP-TG-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -544,8 +528,8 @@ app.post('/api/telegram/webhook', async (req, res) => {
         category: session.answers.category || 'Miscellaneous Business',
         description: session.answers.description || 'Expense description',
         totalAmount: session.answers.totalAmount || finalAmount,
-        vatStatus: session.answers.vatStatus || 'Without VAT (উইদাউট ভ্যাট)',
-        paymentMethod: session.answers.paymentMethod || 'Cash (ক্যাশ)',
+        vatStatus: session.answers.vatStatus || 'Without VAT',
+        paymentMethod: session.answers.paymentMethod || 'Cash',
         project: session.answers.project || 'General Project',
         approvedBy: session.answers.approvedBy || 'Finance Manager',
         receiptUrl: session.answers.receiptUrl || '',
@@ -579,16 +563,15 @@ app.post('/api/telegram/webhook', async (req, res) => {
         `💰 Amount: ${newExpenseRecord.amount.toFixed(2)} SAR\n` +
         `📁 Purpose: ${newExpenseRecord.category}\n` +
         `📝 Description: ${newExpenseRecord.description}\n` +
-        `💵 Total Cost: ${newExpenseRecord.totalAmount.toFixed(2)} SAR\n` +
         `🧾 VAT: ${newExpenseRecord.vatStatus}\n` +
         `💳 Payment: ${newExpenseRecord.paymentMethod}\n` +
         `🏢 Project: ${newExpenseRecord.project}\n` +
         `👤 Approver: ${newExpenseRecord.approvedBy}\n` +
         `📸 Receipt: ${newExpenseRecord.receiptUrl ? 'Attached ✅' : 'None'}\n\n` +
-        `Do you have another expense to add in this session? (আপনার কি আরও কোনো খরচ আছে?)`;
+        `Do you have another expense to add in this session?`;
 
       const choiceKeyboard = [
-        ['➕ Yes, Add Another Expense (আরেকটি খরচ যোগ করুন)'],
+        ['➕ Yes, Add Another Expense'],
         [`✅ No, Finalize Session (${session.sessionExpenses.length} Items)`]
       ];
 
@@ -598,7 +581,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
         id: `tg_${Date.now()}`,
         timestamp: new Date().toISOString(),
         sender: `${sender} (${chatId})`,
-        text: `[Completed 9-Question Submission: ${expId} - ${finalAmount} SAR]`,
+        text: `[Completed 8-Question Submission: ${expId} - ${finalAmount} SAR]`,
         response: completionReply,
         status: 'processed'
       });
@@ -618,7 +601,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
   }
 });
 
-// Natural Language Expense Parser endpoint (using Gemini API aligned strictly with the 9 questions)
+// Natural Language Expense Parser endpoint (using Gemini API aligned strictly with the 8 questions)
 app.post('/api/parse-expense', async (req, res) => {
   try {
     const { input } = req.body;
@@ -638,8 +621,8 @@ app.post('/api/parse-expense', async (req, res) => {
           category: 'Office & Operations',
           description: input,
           totalAmount: amount,
-          vatStatus: 'Without VAT (উইদাউট ভ্যাট)',
-          paymentMethod: 'Cash (ক্যাশ)',
+          vatStatus: 'Without VAT',
+          paymentMethod: 'Cash',
           project: 'General Project',
           approvedBy: 'Finance Manager',
           receiptUrl: '',
@@ -652,17 +635,17 @@ app.post('/api/parse-expense', async (req, res) => {
 
     const response = await gemini.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Extract expense details from the following user description strictly matching these 9 questions:
+      contents: `Extract expense details from the following user description strictly matching these 8 questions:
 1. amount: (number) How much money was spent or requested in SAR (Q1)
 2. category: (string) Why did this expense occur / Purpose / Reason (Q2)
 3. description: (string) Detailed description of the expense (Q3)
-4. totalAmount: (number) Total value/cost amount of the expense in SAR (Q4, defaults to amount)
-5. vatStatus: (string) "With VAT (ভ্যাট সহ)" or "Without VAT (উইদাউট ভ্যাট)" (Q5)
-6. paymentMethod: (string) "Cash (ক্যাশ)" or "Bank Transfer (ব্যাংক ট্রান্সফার)" (Q6)
-7. project: (string) Which project is this related to (Q7, default: "General Project")
-8. approvedBy: (string) Who gave approval for this expense (Q8, default: "Finance Manager")
-9. receiptUrl: (string) Invoice / receipt image url if present, otherwise "" (Q9)
+4. vatStatus: (string) "With VAT" or "Without VAT" (Q4)
+5. paymentMethod: (string) "Cash" or "Bank Transfer" (Q5)
+6. project: (string) Which project is this related to (Q6, default: "General Project")
+7. approvedBy: (string) Who gave approval for this expense (Q7, default: "Finance Manager")
+8. receiptUrl: (string) Invoice / receipt image url if present, otherwise "" (Q8)
 Also include:
+- totalAmount: (number) set same as amount
 - currency: strictly "${SYSTEM_CURRENCY}"
 - date: YYYY-MM-DD (today if not mentioned)
 
@@ -679,8 +662,8 @@ User Input: "${input}"`
     parsed.currency = SYSTEM_CURRENCY;
     if (typeof parsed.amount !== 'number') parsed.amount = Number(parsed.amount) || 0;
     if (typeof parsed.totalAmount !== 'number') parsed.totalAmount = parsed.amount;
-    if (!parsed.vatStatus) parsed.vatStatus = 'Without VAT (উইদাউট ভ্যাট)';
-    if (!parsed.paymentMethod) parsed.paymentMethod = 'Cash (ক্যাশ)';
+    if (!parsed.vatStatus) parsed.vatStatus = 'Without VAT';
+    if (!parsed.paymentMethod) parsed.paymentMethod = 'Cash';
     if (!parsed.project) parsed.project = 'General Project';
     if (!parsed.approvedBy) parsed.approvedBy = 'Finance Manager';
     if (!parsed.category) parsed.category = 'General Expense';
@@ -811,8 +794,8 @@ app.post(['/api/sheets/test', '/api/sheets/test-connection'], async (req, res) =
     const testResult = await testGoogleSheetsConnection(backendConfig);
     res.json(testResult);
   } catch (err: any) {
-    console.error('[Google Sheets Test API Error]:', err);
-    res.status(500).json({ success: false, error: err.message });
+    const formattedError = formatGoogleError(err, resolveBackendConfig(req.body?.config));
+    res.json({ success: false, error: formattedError });
   }
 });
 
@@ -821,26 +804,27 @@ app.post('/api/sheets/sync', async (req, res) => {
   try {
     const { config, expenses } = req.body;
     const backendConfig = resolveBackendConfig(config);
+    const key = extractPrivateKey(backendConfig);
 
     if (!backendConfig.spreadsheetId) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         error: 'Spreadsheet ID is required. Please configure your Google Sheets settings.'
       });
     }
 
-    if (!backendConfig.serviceAccountEmail || (!backendConfig.serviceAccountPrivateKey && !backendConfig.encryptedPrivateKey)) {
-      return res.status(400).json({
+    if (!backendConfig.serviceAccountEmail || !key) {
+      return res.json({
         success: false,
-        error: 'Google Service Account credentials are not configured. Please complete Google Sheets API setup or add them to App Secrets.'
+        error: 'Google Service Account credentials (email and private key) are not configured. Please complete Google Sheets API setup or add them in App Settings.'
       });
     }
 
     const syncResult = await syncExpensesToSheet(backendConfig, expenses || []);
     res.json(syncResult);
   } catch (err: any) {
-    console.error('[Google Sheets Sync Error]:', err);
-    res.status(500).json({ success: false, error: err.message });
+    const formattedError = formatGoogleError(err, resolveBackendConfig(req.body?.config));
+    res.json({ success: false, error: formattedError });
   }
 });
 
@@ -853,8 +837,8 @@ app.post('/api/sheets/data', async (req, res) => {
     const dataResult = await getSpreadsheetData(backendConfig, limit || 50);
     res.json(dataResult);
   } catch (err: any) {
-    console.error('[Google Sheets Data API Error]:', err);
-    res.status(500).json({ success: false, error: err.message });
+    const formattedError = formatGoogleError(err, resolveBackendConfig(req.body?.config));
+    res.json({ success: false, error: formattedError });
   }
 });
 

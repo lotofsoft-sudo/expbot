@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppSettings, Expense, AppUser, BotQuestion, ApprovalPdfConfig, TelegramCommand } from '../types';
+import { AppSettings, Expense, AppUser, BotQuestion, ApprovalPdfConfig, TelegramCommand, LanguageMode } from '../types';
 import { DEFAULT_TELEGRAM_COMMANDS } from '../data/defaultTelegramCommands';
 import { ApprovalVoucherModal } from './ApprovalVoucherModal';
 import {
@@ -26,7 +26,8 @@ import {
   Calendar,
   CreditCard,
   UserCheck,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from 'lucide-react';
 
 interface TelegramSimulatorProps {
@@ -37,6 +38,8 @@ interface TelegramSimulatorProps {
   onExpenseSubmitted: (expense: Expense) => void;
   recentExpenses?: Expense[];
   onSavePdfConfig?: (newConfig: ApprovalPdfConfig) => Promise<void>;
+  appLanguage?: LanguageMode;
+  onLanguageChange?: (lang: LanguageMode) => void;
 }
 
 interface TelegramMsg {
@@ -57,9 +60,11 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
   telegramCommands = DEFAULT_TELEGRAM_COMMANDS,
   onExpenseSubmitted,
   recentExpenses = [],
-  onSavePdfConfig
+  onSavePdfConfig,
+  appLanguage = 'en',
+  onLanguageChange
 }) => {
-  // Sort and ensure 9 questions
+  // Sort and ensure 8 questions
   const sortedQuestions = [...botQuestions].sort((a, b) => a.order - b.order);
 
   // Active conversational state
@@ -73,18 +78,23 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
   const [sessionExpenses, setSessionExpenses] = useState<Expense[]>([]);
   const [awaitingMoreChoice, setAwaitingMoreChoice] = useState<boolean>(false);
 
+  const getQuestionText = (q: BotQuestion, itemNum: number, qNum: number) => {
+    if (!q) return '';
+    return `<b>Expense #${itemNum} (Question ${qNum}/8):</b>\n${q.questionEn || q.questionText}`;
+  };
+
   // Messages in Telegram feed
   const [tgMessages, setTgMessages] = useState<TelegramMsg[]>([
     {
       id: 'tg_welcome',
       sender: 'bot',
-      text: `🤖 <b>ExpenseFlow Telegram Bot (Saudi Arabia)</b>\nস্বাগতম ${currentUser.displayName}! নির্ধারিত ৯টি প্রশ্নের মাধ্যমে একক বা একসাথে একাধিক খরচ জমা দিন।\n\n📌 <b>Commands:</b>\n• <code>/new</code> বা <code>/start</code> - নতুন খরচ শুরু করুন\n• <code>/pdf</code> - অ্যাপ্রুভড পিডিএফ ভাউচার ডাউনলোড করুন\n• <code>/status</code> - সিস্টেম স্ট্যাটাস`,
+      text: `🤖 <b>ExpenseFlow Telegram Bot (Saudi Arabia)</b>\nWelcome ${currentUser.displayName}! Submit single or multiple expenses by answering 8 standard questions.\n\n📌 <b>Commands:</b>\n• <code>/new</code> or <code>/start</code> - Start new expense submission\n• <code>/pdf</code> - Download approved PDF vouchers\n• <code>/status</code> - System status`,
       time: '10:00'
     },
     {
       id: 'tg_q1_init',
       sender: 'bot',
-      text: `<b>Expense #1 (প্রশ্ন ১/৯):</b>\n${sortedQuestions[0]?.questionBn || 'আপনার কত টাকা খরচ হয়েছে অথবা আপনি কত টাকা খরচ করতে চাচ্ছেন?'}\n<i>${sortedQuestions[0]?.questionEn || 'How much money was spent or do you want to spend? (SAR)'}</i>`,
+      text: getQuestionText(sortedQuestions[0], 1, 1),
       time: '10:00'
     }
   ]);
@@ -126,12 +136,6 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
     }
   };
 
-  const getQuestionText = (q: BotQuestion, itemNum: number, qNum: number) => {
-    const qBn = q.questionBn || q.questionText || '';
-    const qEn = q.questionEn || '';
-    return `<b>Expense #${itemNum} (প্রশ্ন ${qNum}/৯):</b>\n${qBn}\n<i>${qEn}</i>`;
-  };
-
   const handleStartFreshSession = () => {
     setCurrentStepIndex(0);
     setDraftExpense({
@@ -142,7 +146,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
     setAwaitingMoreChoice(false);
 
     const firstQ = sortedQuestions[0];
-    const welcomeMsg = `🔄 <b>নতুন খরচ সেশন শুরু হয়েছে!</b>\n\n${getQuestionText(firstQ, 1, 1)}`;
+    const welcomeMsg = `🔄 <b>New Expense Session Started!</b>\n\n${getQuestionText(firstQ, 1, 1)}`;
 
     setTgMessages((prev) => [
       ...prev,
@@ -169,10 +173,11 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
 
   const processCurrentQuestionAnswer = (rawAnswer: string, receiptName?: string, receiptPreview?: string) => {
     const answer = rawAnswer.trim();
-    if (!answer && currentStepIndex !== 8) return;
+    const currentQ = sortedQuestions[currentStepIndex];
+    if (!answer && currentQ?.key !== 'receiptUrl') return;
 
     // Post user response to chat
-    const displayAnswerText = currentStepIndex === 8 && receiptPreview
+    const displayAnswerText = currentQ?.key === 'receiptUrl' && receiptPreview
       ? `📸 [Attached Invoice: ${receiptName || 'receipt.jpg'}]`
       : answer;
 
@@ -187,7 +192,6 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
     setTgMessages((prev) => [...prev, userMsg]);
     setInputVal('');
 
-    const currentQ = sortedQuestions[currentStepIndex];
     if (!currentQ) return;
 
     const updatedDraft = { ...draftExpense };
@@ -202,10 +206,6 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
       updatedDraft.category = answer;
     } else if (currentQ.key === 'description') {
       updatedDraft.description = answer;
-    } else if (currentQ.key === 'totalAmount') {
-      const num = parseFloat(answer.replace(/[^0-9.]/g, ''));
-      const val = isNaN(num) ? (updatedDraft.amount || 50) : num;
-      updatedDraft.totalAmount = val;
     } else if (currentQ.key === 'vatStatus') {
       updatedDraft.vatStatus = answer;
     } else if (currentQ.key === 'paymentMethod') {
@@ -249,12 +249,12 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
         ]);
       }, 250);
     } else {
-      // Completed all 9 questions -> Record Expense
+      // Completed all 8 questions -> Record Expense
       setIsSimulating(true);
       setTimeout(() => {
         setIsSimulating(false);
 
-        const expAmount = updatedDraft.amount || updatedDraft.totalAmount || 50;
+        const expAmount = updatedDraft.amount || 50;
         const finalExpense: Expense = {
           id: `EXP-${Math.floor(1000 + Math.random() * 9000)}`,
           userId: currentUser.uid || 'usr-tg',
@@ -293,17 +293,16 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
         });
 
         const confirmMsg =
-          `✅ <b>Expense #${updatedSessionList.length} (${finalExpense.id}) ডাটাবেজে সংরক্ষণ করা হয়েছে!</b>\n\n` +
-          `💰 <b>টাকার পরিমাণ:</b> ${finalExpense.amount.toFixed(2)} SAR\n` +
-          `📁 <b>খরচের কারণ:</b> ${finalExpense.category}\n` +
-          `📝 <b>বর্ণনা:</b> ${finalExpense.description}\n` +
-          `💵 <b>মোট মূল্য:</b> ${finalExpense.totalAmount.toFixed(2)} SAR\n` +
-          `🧾 <b>ভ্যাট স্ট্যাটাস:</b> ${finalExpense.vatStatus}\n` +
-          `💳 <b>পেমেন্ট মেথড:</b> ${finalExpense.paymentMethod}\n` +
-          `🏢 <b>প্রজেক্ট:</b> ${finalExpense.project}\n` +
-          `👤 <b>অ্যাপ্রুভাল প্রদানকারী:</b> ${finalExpense.approvedBy}\n` +
-          `📸 <b>ইনভয়েস:</b> ${finalExpense.receiptUrl ? 'সংযুক্ত করা হয়েছে ✅' : 'সংযুক্ত করা হয়নি'}\n\n` +
-          `❓ <b>Do you have another expense to add in this session? (আপনার কি আরও কোনো খরচ আছে?)</b>`;
+          `✅ <b>Expense #${updatedSessionList.length} (${finalExpense.id}) Saved to Database!</b>\n\n` +
+          `💰 <b>Amount:</b> ${finalExpense.amount.toFixed(2)} SAR\n` +
+          `📁 <b>Category:</b> ${finalExpense.category}\n` +
+          `📝 <b>Description:</b> ${finalExpense.description}\n` +
+          `🧾 <b>VAT Status:</b> ${finalExpense.vatStatus}\n` +
+          `💳 <b>Payment Method:</b> ${finalExpense.paymentMethod}\n` +
+          `🏢 <b>Project:</b> ${finalExpense.project}\n` +
+          `👤 <b>Approved By:</b> ${finalExpense.approvedBy}\n` +
+          `📸 <b>Receipt:</b> ${finalExpense.receiptUrl ? 'Attached ✅' : 'None'}\n\n` +
+          `❓ <b>Do you have another expense to add in this session?</b>`;
 
         setTgMessages((prev) => [
           ...prev,
@@ -428,7 +427,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           {
             id: `bot_tg_${Date.now()}`,
             sender: 'bot',
-            text: `🎉 <b>Session Finalized Successfully!</b>\n\n📋 <b>মোট জমা দেওয়া খরচ:</b> ${count} টি\n💵 <b>সর্বমোট টাকার পরিমাণ:</b> ${totalSum.toFixed(2)} SAR\n\nসবগুলো আইটেম ফায়ারবেস ও গুগল শিটে সেইভ করা হয়েছে। প্রতিটি খরচ আলাদা রেকর্ড হিসেবে লেজারে অ্যাপ্রুভালের জন্য প্রস্তুত।\n\nনতুন খরচ এন্ট্রি করতে <code>/new</code> লিখুন।`,
+            text: `🎉 <b>Session Finalized Successfully!</b>\n\n📋 <b>Total Expenses Submitted:</b> ${count}\n💵 <b>Grand Total:</b> ${totalSum.toFixed(2)} SAR\n\nAll items are saved in Firebase Firestore & Google Sheets. Ready for individual approval in the Expense Ledger.\n\nType <code>/new</code> anytime to start a new submission.`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
@@ -490,13 +489,13 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
               </span>
               <span>
                 {awaitingMoreChoice
-                  ? 'Session Follow-up (পরবর্তী পদক্ষেপ)'
-                  : `Question ${currentStepIndex + 1} of 9: ${activeQuestion?.key || 'amount'}`}
+                  ? 'Session Follow-up'
+                  : `Question ${currentStepIndex + 1} of 8: ${activeQuestion?.key || 'amount'}`}
               </span>
             </div>
 
             <div className="flex items-center gap-1">
-              {[...Array(9)].map((_, idx) => (
+              {[...Array(8)].map((_, idx) => (
                 <span
                   key={idx}
                   className={`w-2.5 h-1.5 rounded-full transition-all ${
@@ -595,7 +594,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           {/* Interactive Telegram Quick Reply Keyboard (Changes per Question) */}
           <div className="p-2.5 bg-emerald-100/70 border-t border-emerald-200">
             <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-1.5 px-1">
-              Telegram Quick Keyboard (ক্লিক করে উত্তর দিন):
+              Telegram Quick Keyboard (Click to reply):
             </span>
 
             {awaitingMoreChoice ? (
@@ -605,17 +604,17 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                   className="p-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  <span>হ্যাঁ, আরেকটি যোগ করুন</span>
+                  <span>Yes, Add Another</span>
                 </button>
                 <button
                   onClick={() => handleSendTelegram('✅ No, Finalize Session')}
                   className="p-2.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
-                  <span>না, সমাপ্ত করুন</span>
+                  <span>No, Finalize Session</span>
                 </button>
               </div>
-            ) : currentStepIndex === 0 ? (
+            ) : activeQuestion?.key === 'amount' ? (
               /* Q1: Amount Presets */
               <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {['50 SAR', '100 SAR', '150 SAR', '250 SAR', '500 SAR', '1000 SAR'].map((amt) => (
@@ -628,16 +627,16 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                   </button>
                 ))}
               </div>
-            ) : currentStepIndex === 1 ? (
+            ) : activeQuestion?.key === 'category' ? (
               /* Q2: Purpose / Category Options */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto">
                 {(activeQuestion?.options || [
-                  'Travel & Transport / যাতায়াত',
-                  'Client Dining & Meals / খাবার ও আপ্যায়ন',
-                  'Office Supplies / অফিস সামগ্রী',
-                  'Software & Cloud / সফটওয়্যার',
-                  'Fuel & Maintenance / জ্বালানি',
-                  'Hotel & Lodging / হোটেল ও আবাসন'
+                  'Travel & Transport',
+                  'Client Dining & Meals',
+                  'Office Supplies',
+                  'Software & Cloud Services',
+                  'Fuel & Maintenance',
+                  'Hotel & Lodging'
                 ]).map((opt) => (
                   <button
                     key={opt}
@@ -648,50 +647,40 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                   </button>
                 ))}
               </div>
-            ) : currentStepIndex === 3 ? (
-              /* Q4: Confirm Total Amount */
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleSendTelegram(`${draftExpense.amount || 50} SAR`)}
-                  className="flex-1 p-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs cursor-pointer text-center"
-                >
-                  Confirm: {draftExpense.amount || 50} SAR
-                </button>
-              </div>
-            ) : currentStepIndex === 4 ? (
-              /* Q5: VAT Status Options */
+            ) : activeQuestion?.key === 'vatStatus' ? (
+              /* VAT Status Options */
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleSendTelegram('With VAT (ভ্যাট সহ / شامل الضريبة)')}
+                  onClick={() => handleSendTelegram('With VAT')}
                   className="p-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold text-center shadow-xs cursor-pointer"
                 >
-                  ভ্যাট সহ (With VAT)
+                  With VAT
                 </button>
                 <button
-                  onClick={() => handleSendTelegram('Without VAT (উইদাউট ভ্যাট / بدون ضريبة)')}
+                  onClick={() => handleSendTelegram('Without VAT')}
                   className="p-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold text-center shadow-xs cursor-pointer"
                 >
-                  উইদাউট ভ্যাট (Without VAT)
+                  Without VAT
                 </button>
               </div>
-            ) : currentStepIndex === 5 ? (
-              /* Q6: Payment Method Options */
+            ) : activeQuestion?.key === 'paymentMethod' ? (
+              /* Payment Method Options */
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleSendTelegram('Cash (ক্যাশ / نقداً)')}
+                  onClick={() => handleSendTelegram('Cash')}
                   className="p-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold text-center shadow-xs cursor-pointer"
                 >
-                  💵 Cash (ক্যাশ)
+                  💵 Cash
                 </button>
                 <button
-                  onClick={() => handleSendTelegram('Bank Transfer (ব্যাংক ট্রান্সফার / تحويل بنكي)')}
+                  onClick={() => handleSendTelegram('Bank Transfer')}
                   className="p-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold text-center shadow-xs cursor-pointer"
                 >
-                  🏦 Bank (ব্যাংক)
+                  🏦 Bank Transfer
                 </button>
               </div>
-            ) : currentStepIndex === 6 ? (
-              /* Q7: Project Suggestions */
+            ) : activeQuestion?.key === 'project' ? (
+              /* Project Suggestions */
               <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {['Riyadh Metro Project', 'HQ Operations', 'Marketing Campaign', 'General Project'].map((proj) => (
                   <button
@@ -703,8 +692,8 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                   </button>
                 ))}
               </div>
-            ) : currentStepIndex === 7 ? (
-              /* Q8: Approver Suggestions */
+            ) : activeQuestion?.key === 'approvedBy' ? (
+              /* Approver Suggestions */
               <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {['Finance Manager', 'Faisal Al-Otaibi', 'Project Manager', 'Department Head'].map((appr) => (
                   <button
@@ -716,21 +705,21 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                   </button>
                 ))}
               </div>
-            ) : currentStepIndex === 8 ? (
-              /* Q9: Photo Upload & Skip */
+            ) : activeQuestion?.key === 'receiptUrl' ? (
+              /* Photo Upload & Skip */
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Camera className="w-4 h-4" />
-                  <span>📸 ছবি সংযুক্ত করুন (Upload)</span>
+                  <span>📸 Upload Receipt</span>
                 </button>
                 <button
-                  onClick={() => handleSendTelegram('Skip (রসিদ নেই)')}
+                  onClick={() => handleSendTelegram('Skip (No Receipt)')}
                   className="p-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold text-center shadow-xs cursor-pointer"
                 >
-                  Skip / রসিদ নেই
+                  Skip / No Receipt
                 </button>
               </div>
             ) : (
@@ -802,50 +791,46 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           <div className="flex items-center justify-between border-b border-emerald-100 pb-2.5">
             <h4 className="font-bold text-sm text-emerald-950 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Live 9-Question Draft (বর্তমান ড্রাফট)</span>
+              <span>Live 8-Question Draft</span>
             </h4>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-              {currentStepIndex} of 9 Completed
+              {currentStepIndex} of 8 Completed
             </span>
           </div>
 
           <div className="space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">১. খরচের টাকা (Amount):</span>
+              <span className="text-emerald-700 font-medium">1. Amount:</span>
               <span className="font-bold text-emerald-950">{draftExpense.amount ? `${draftExpense.amount} SAR` : '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">২. খরচের কারণ (Purpose):</span>
+              <span className="text-emerald-700 font-medium">2. Purpose / Category:</span>
               <span className="font-bold text-emerald-950 truncate max-w-[180px]">{draftExpense.category || '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৩. বিস্তারিত বর্ণনা (Details):</span>
+              <span className="text-emerald-700 font-medium">3. Details:</span>
               <span className="font-bold text-emerald-950 truncate max-w-[180px]">{draftExpense.description || '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৪. মোট মূল্য (Total SAR):</span>
-              <span className="font-bold text-emerald-950">{draftExpense.totalAmount ? `${draftExpense.totalAmount} SAR` : '---'}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৫. ভ্যাট স্ট্যাটাস (VAT):</span>
+              <span className="text-emerald-700 font-medium">4. VAT Status:</span>
               <span className="font-bold text-emerald-950">{draftExpense.vatStatus || '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৬. পেমেন্ট মেথড (Payment):</span>
+              <span className="text-emerald-700 font-medium">5. Payment Method:</span>
               <span className="font-bold text-emerald-950">{draftExpense.paymentMethod || '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৭. প্রজেক্টের নাম (Project):</span>
+              <span className="text-emerald-700 font-medium">6. Project:</span>
               <span className="font-bold text-emerald-950">{draftExpense.project || '---'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-emerald-50">
-              <span className="text-emerald-700 font-medium">৮. অনুমোদনকারী (Approver):</span>
+              <span className="text-emerald-700 font-medium">7. Approver:</span>
               <span className="font-bold text-emerald-950">{draftExpense.approvedBy || '---'}</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-emerald-700 font-medium">৯. ইনভয়েস ছবি (Invoice):</span>
+              <span className="text-emerald-700 font-medium">8. Receipt Image:</span>
               <span className="font-bold text-emerald-950">
-                {draftExpense.receiptUrl ? 'সংযুক্ত ✅' : 'সংযুক্ত নেই'}
+                {draftExpense.receiptUrl ? 'Attached ✅' : 'None'}
               </span>
             </div>
           </div>
@@ -881,9 +866,9 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           </div>
 
           <div className="text-xs text-emerald-800 space-y-1">
-            <div className="font-bold text-emerald-950">Telegram এ বট যেভাবে কাজ করে:</div>
+            <div className="font-bold text-emerald-950">How the Telegram Bot Operates:</div>
             <p>
-              মোবাইল বা ডেস্কটপ টেলিগ্রাম অ্যাপ থেকে ইউজার বটকে মেসেজ দিলে বট স্বয়ংক্রিয়ভাবে এই ৯টি প্রশ্ন ক্রমান্বয়ে জিজ্ঞেস করবে এবং কাস্টম কিবোর্ড প্রদর্শন করবে।
+              When a user sends a message from mobile or desktop Telegram, the bot automatically guides them step-by-step through the 8 questions using interactive reply keyboards.
             </p>
           </div>
         </div>

@@ -37,6 +37,8 @@ interface WebChatProps {
   onExpenseSubmitted: (expense: Expense) => void;
   recentExpenses: Expense[];
   onSavePdfConfig?: (newConfig: ApprovalPdfConfig) => Promise<void>;
+  appLanguage?: LanguageMode;
+  onLanguageChange?: (lang: LanguageMode) => void;
 }
 
 export const WebChat: React.FC<WebChatProps> = ({
@@ -45,7 +47,9 @@ export const WebChat: React.FC<WebChatProps> = ({
   appSettings,
   onExpenseSubmitted,
   recentExpenses,
-  onSavePdfConfig
+  onSavePdfConfig,
+  appLanguage = 'en',
+  onLanguageChange
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
@@ -57,7 +61,15 @@ export const WebChat: React.FC<WebChatProps> = ({
   const [isAiProcessing, setIsAiProcessing] = useState<boolean>(false);
   const [receiptFile, setReceiptFile] = useState<{ url: string; name: string } | null>(null);
   const [isAiMode, setIsAiMode] = useState<boolean>(false);
-  const [langMode, setLangMode] = useState<LanguageMode>('bn_en');
+  const [langMode, setLangMode] = useState<LanguageMode>(appLanguage || 'en');
+
+  // Sync langMode when parent appLanguage changes
+  useEffect(() => {
+    if (appLanguage && appLanguage !== langMode) {
+      setLangMode(appLanguage);
+      startNewExpenseFlow(appLanguage);
+    }
+  }, [appLanguage]);
 
   // Multi-Expense Batch Session Tracking
   const [sessionExpenses, setSessionExpenses] = useState<Expense[]>([]);
@@ -73,6 +85,15 @@ export const WebChat: React.FC<WebChatProps> = ({
   const getQuestionDisplay = (q: BotQuestion, mode: LanguageMode): string => {
     if (!q) return '';
     const num = q.order;
+    if (mode === 'en') {
+      return `${num}. ${q.questionEn || q.questionText}`;
+    }
+    if (mode === 'bn') {
+      return `${num}. ${q.questionBn || q.questionText}`;
+    }
+    if (mode === 'ar') {
+      return `${num}. ${q.questionAr || q.questionText}`;
+    }
     if (mode === 'bn_en') {
       const bn = q.questionBn || q.questionText;
       const en = q.questionEn || '';
@@ -83,10 +104,11 @@ export const WebChat: React.FC<WebChatProps> = ({
       const en = q.questionEn || '';
       return en ? `${num}. ${ar} / ${en}` : `${num}. ${ar}`;
     }
-    if (mode === 'bn') return `${num}. ${q.questionBn || q.questionText}`;
-    if (mode === 'ar') return `${num}. ${q.questionAr || q.questionText}`;
-    if (mode === 'en') return `${num}. ${q.questionEn || q.questionText}`;
     return q.questionText;
+  };
+
+  const getWelcomeText = (mode: LanguageMode): string => {
+    return `Welcome ${currentUser.displayName}! 👋 Welcome to Smart Expense Bot (Saudi Arabia • SAR).\n\nYou can submit a single expense or multiple expenses in one session. Please answer the 8 standard questions below.`;
   };
 
   // Initialize chat flow when component mounts or bot questions change
@@ -116,7 +138,7 @@ export const WebChat: React.FC<WebChatProps> = ({
       {
         id: 'msg_welcome',
         sender: 'bot',
-        text: `স্বাগতম ${currentUser.displayName}! 👋 Welcome to the Smart Expense Bot (Saudi Arabia • SAR).\n\nআপনি একটি অথবা একসাথে একাধিক খরচ সাবমিট করতে পারবেন। নির্ধারিত ৯টি প্রশ্নের উত্তর দিয়ে সহজে খরচ জমা দিন।`,
+        text: getWelcomeText(mode),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ];
@@ -152,7 +174,7 @@ export const WebChat: React.FC<WebChatProps> = ({
       {
         id: `msg_next_item_intro_${Date.now()}`,
         sender: 'bot',
-        text: `➕ Starting Expense #${nextItemNumber} in this session (নতুন খরচ #${nextItemNumber} শুরু হচ্ছে)।`,
+        text: `➕ Starting Expense #${nextItemNumber} in this session.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ];
@@ -189,9 +211,9 @@ export const WebChat: React.FC<WebChatProps> = ({
     // Handle "Another Expense" decision state
     if (isAwaitingAnotherExpenseChoice) {
       const lower = text.toLowerCase();
-      if (lower.includes('yes') || lower.includes('add another') || lower.includes('আরেকটি') || lower.includes('হ্যাঁ')) {
+      if (lower.includes('yes') || lower.includes('add another')) {
         startNextExpenseInSession(sessionExpenses);
-      } else if (lower.includes('no') || lower.includes('submit') || lower.includes('finalize') || lower.includes('না') || lower.includes('done')) {
+      } else if (lower.includes('no') || lower.includes('submit') || lower.includes('finalize') || lower.includes('done')) {
         finalizeBatchSession(sessionExpenses);
       } else {
         setIsAwaitingAnotherExpenseChoice(false);
@@ -307,7 +329,7 @@ export const WebChat: React.FC<WebChatProps> = ({
       {
         id: `msg_ai_proc_${Date.now()}`,
         sender: 'system',
-        text: 'Analyzing expense details with Gemini AI (খরচের বিবরণ বিশ্লেষণ করা হচ্ছে)...',
+        text: 'Analyzing expense details with Gemini AI...',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
@@ -330,8 +352,8 @@ export const WebChat: React.FC<WebChatProps> = ({
           category: parsed.category || 'Miscellaneous Business',
           description: parsed.description || text,
           totalAmount: parsed.amount || 0,
-          vatStatus: parsed.vatStatus || 'Without VAT (উইদাউট ভ্যাট)',
-          paymentMethod: parsed.paymentMethod || 'Cash (ক্যাশ)',
+          vatStatus: parsed.vatStatus || 'Without VAT',
+          paymentMethod: parsed.paymentMethod || 'Cash',
           project: parsed.project || 'General Project',
           approvedBy: currentUser.displayName,
           date: parsed.date || new Date().toISOString().split('T')[0],
@@ -346,7 +368,7 @@ export const WebChat: React.FC<WebChatProps> = ({
           {
             id: `msg_ai_confirm_${Date.now()}`,
             sender: 'bot',
-            text: `Extracted Expense Details (Expense #${sessionExpenses.length + 1}):\n💰 Amount: ${fullExpense.amount} SAR\n📁 Category: ${fullExpense.category}\n📝 Description: ${fullExpense.description}\n🏢 Project: ${fullExpense.project}\n💳 Payment: ${fullExpense.paymentMethod}\n\nসব তথ্য ঠিক থাকলে Confirm করুন:`,
+            text: `Extracted Expense Details (Expense #${sessionExpenses.length + 1}):\n💰 Amount: ${fullExpense.amount} SAR\n📁 Category: ${fullExpense.category}\n📝 Description: ${fullExpense.description}\n🏢 Project: ${fullExpense.project}\n💳 Payment: ${fullExpense.paymentMethod}\n\nPlease confirm if details are correct:`,
             options: ['Confirm Item & Continue ✅', 'Start Over 🔄'],
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
@@ -359,7 +381,7 @@ export const WebChat: React.FC<WebChatProps> = ({
         {
           id: `msg_ai_err_${Date.now()}`,
           sender: 'bot',
-          text: "Could not auto-parse. Let's proceed step-by-step with the 9 questions.",
+          text: "Could not auto-parse. Let's proceed step-by-step with the 8 questions.",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -380,8 +402,8 @@ export const WebChat: React.FC<WebChatProps> = ({
       category: expenseData.category || 'Miscellaneous Business',
       description: expenseData.description || 'Expense description',
       totalAmount: expenseData.totalAmount || finalAmount,
-      vatStatus: expenseData.vatStatus || 'Without VAT (উইদাউট ভ্যাট)',
-      paymentMethod: expenseData.paymentMethod || 'Cash (ক্যাশ)',
+      vatStatus: expenseData.vatStatus || 'Without VAT',
+      paymentMethod: expenseData.paymentMethod || 'Cash',
       project: expenseData.project || 'General Project',
       approvedBy: expenseData.approvedBy || currentUser.displayName,
       date: expenseData.date || new Date().toISOString().split('T')[0],
@@ -410,10 +432,10 @@ export const WebChat: React.FC<WebChatProps> = ({
         {
           id: `msg_item_recorded_${Date.now()}`,
           sender: 'bot',
-          text: `✅ Expense #${itemNumber} (${newExpense.id}) saved to Firebase Database!\n\n💰 Amount: ${newExpense.amount.toFixed(2)} SAR\n📁 Purpose: ${newExpense.category}\n📝 Details: ${newExpense.description}\n🏢 Project: ${newExpense.project}\n💳 Payment: ${newExpense.paymentMethod}\n👤 Approver: ${newExpense.approvedBy}\n🧾 Receipt: ${newExpense.receiptUrl ? 'Attached' : 'None'}\n\nDo you have another expense to add in this session? (আপনার কি আরও কোনো খরচ আছে?)`,
+          text: `✅ Expense #${itemNumber} (${newExpense.id}) saved to Firebase Database!\n\n💰 Amount: ${newExpense.amount.toFixed(2)} SAR\n📁 Purpose: ${newExpense.category}\n📝 Details: ${newExpense.description}\n🏢 Project: ${newExpense.project}\n💳 Payment: ${newExpense.paymentMethod}\n👤 Approver: ${newExpense.approvedBy}\n🧾 Receipt: ${newExpense.receiptUrl ? 'Attached' : 'None'}\n\nDo you have another expense to add in this session?`,
           submittedExpense: newExpense,
           options: [
-            '➕ Yes, Add Another Expense (আরেকটি খরচ যোগ করুন)',
+            '➕ Yes, Add Another Expense',
             `✅ No, Finalize Session (${updatedSession.length} Expense${updatedSession.length > 1 ? 's' : ''})`
           ],
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -460,8 +482,8 @@ export const WebChat: React.FC<WebChatProps> = ({
           text: isBatch
             ? `🎉 Batch Session Submitted & Saved Successfully!\n\n📋 Total ${finalizedList.length} expenses recorded (Batch ID: ${batchId})\n💵 Grand Total: ${totalSum.toFixed(2)} SAR\n\nAll items are safely stored in Firebase Firestore and synced to Google Sheets. In the Ledger, they are listed as individual entries with separate approvals.`
             : `🎉 Expense #${finalizedList[0].id} saved successfully in Firebase!\nAmount: ${finalizedList[0].amount.toFixed(2)} SAR\nStored in Firestore database and synced to Google Sheets.`,
-          submittedExpensesBatch: isBatch ? finalizedList : undefined,
-          submittedExpense: !isBatch ? finalizedList[0] : undefined,
+          submittedExpensesBatch: finalizedList,
+          submittedExpense: finalizedList[0],
           options: ['Record Another Expense ➕', 'View Combined Approval Voucher 📄'],
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -492,7 +514,7 @@ export const WebChat: React.FC<WebChatProps> = ({
     }
   };
 
-  const handleQuickOptionClick = (option: string) => {
+  const handleQuickOptionClick = (option: string, sourceMsg?: ChatMessage) => {
     if (option.includes('Confirm Item') || option.includes('Confirm & Continue')) {
       completeCurrentItemAndAskMore(currentAnswers);
     } else if (option.includes('Add Another') || option.includes('আরেকটি')) {
@@ -502,8 +524,30 @@ export const WebChat: React.FC<WebChatProps> = ({
     } else if (option.includes('Start Over') || option.includes('Record Another')) {
       startNewExpenseFlow();
     } else if (option.includes('View Combined Approval Voucher') || option.includes('Approval Voucher')) {
-      const targetList = recentExpenses.slice(0, 5);
-      setPdfExpenses(targetList.length > 0 ? targetList : [pendingCurrentExpense || recentExpenses[0]]);
+      let targetList: Expense[] = [];
+
+      if (sourceMsg?.submittedExpensesBatch && sourceMsg.submittedExpensesBatch.length > 0) {
+        targetList = sourceMsg.submittedExpensesBatch;
+      } else if (sourceMsg?.submittedExpense) {
+        targetList = [sourceMsg.submittedExpense];
+      } else {
+        // Look back through chat history for the latest finalized session
+        const lastBatchMsg = [...messages].reverse().find((m) => m.submittedExpensesBatch && m.submittedExpensesBatch.length > 0);
+        if (lastBatchMsg?.submittedExpensesBatch && lastBatchMsg.submittedExpensesBatch.length > 0) {
+          targetList = lastBatchMsg.submittedExpensesBatch;
+        } else {
+          const lastSingleMsg = [...messages].reverse().find((m) => m.submittedExpense);
+          if (lastSingleMsg?.submittedExpense) {
+            targetList = [lastSingleMsg.submittedExpense];
+          } else if (pendingCurrentExpense) {
+            targetList = [pendingCurrentExpense];
+          } else if (recentExpenses.length > 0) {
+            targetList = [recentExpenses[0]];
+          }
+        }
+      }
+
+      setPdfExpenses(targetList);
       setPdfModalOpen(true);
     } else {
       handleSendMessage(option);
@@ -512,6 +556,9 @@ export const WebChat: React.FC<WebChatProps> = ({
 
   const handleLanguageSwitch = (mode: LanguageMode) => {
     setLangMode(mode);
+    if (onLanguageChange) {
+      onLanguageChange(mode);
+    }
     startNewExpenseFlow(mode);
   };
 
@@ -532,7 +579,7 @@ export const WebChat: React.FC<WebChatProps> = ({
                   SAR Only
                 </span>
               </div>
-              <p className="text-xs text-emerald-200">৯টি নির্ধারিত প্রশ্ন প্রবাহ • Step-by-Step Question Flow</p>
+              <p className="text-xs text-emerald-200">8-Step Standard Expense Question Flow</p>
             </div>
           </div>
 
@@ -540,11 +587,11 @@ export const WebChat: React.FC<WebChatProps> = ({
           <div className="flex items-center gap-1.5 self-end sm:self-center">
             <Languages className="w-4 h-4 text-emerald-300 mr-1" />
             {[
+              { id: 'en', label: '🇬🇧 EN' },
+              { id: 'bn', label: '🇧🇩 বাংলা' },
+              { id: 'ar', label: '🇸🇦 عربي' },
               { id: 'bn_en', label: '🇧🇩+🇬🇧' },
-              { id: 'ar_en', label: '🇸🇦+🇬🇧' },
-              { id: 'bn', label: 'বাংলা' },
-              { id: 'en', label: 'EN' },
-              { id: 'ar', label: 'عربي' }
+              { id: 'ar_en', label: '🇸🇦+🇬🇧' }
             ].map((l) => (
               <button
                 key={l.id}
@@ -669,9 +716,9 @@ export const WebChat: React.FC<WebChatProps> = ({
                         {msg.options.map((opt) => (
                           <button
                             key={opt}
-                            onClick={() => handleQuickOptionClick(opt)}
+                            onClick={() => handleQuickOptionClick(opt, msg)}
                             className={`px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 ${
-                              opt.includes('Yes') || opt.includes('Add Another') || opt.includes('আরেকটি')
+                              opt.includes('Yes') || opt.includes('Add Another')
                                 ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 font-bold'
                                 : opt.includes('Finalize') || opt.includes('Save All')
                                 ? 'bg-amber-400 hover:bg-amber-300 text-emerald-950 border-amber-500 font-bold'
@@ -789,13 +836,13 @@ export const WebChat: React.FC<WebChatProps> = ({
             {/* Q1 & Q4: Amount */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">1. Amount (খরচের টাকা)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">1. Amount</span>
                 <span className="text-base font-bold text-emerald-950 font-mono">
                   {currentAnswers.amount ? Number(currentAnswers.amount).toFixed(2) : '0.00'} SAR
                 </span>
               </div>
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">4. Total Value (মূল্য নিশ্চিত)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">4. Total Value</span>
                 <span className="text-base font-bold text-emerald-950 font-mono">
                   {currentAnswers.totalAmount ? Number(currentAnswers.totalAmount).toFixed(2) : '0.00'} SAR
                 </span>
@@ -804,7 +851,7 @@ export const WebChat: React.FC<WebChatProps> = ({
 
             {/* Q2: Purpose / Category */}
             <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-              <span className="text-[10px] text-emerald-700 block font-bold">2. Purpose / Category (খরচের কারণ)</span>
+              <span className="text-[10px] text-emerald-700 block font-bold">2. Purpose / Category</span>
               <span className="text-xs font-semibold text-emerald-950 truncate block">
                 {currentAnswers.category || '— Awaiting Selection'}
               </span>
@@ -812,7 +859,7 @@ export const WebChat: React.FC<WebChatProps> = ({
 
             {/* Q3: Detailed Description */}
             <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-              <span className="text-[10px] text-emerald-700 block font-bold">3. Description (বিস্তারিত বিবরণ)</span>
+              <span className="text-[10px] text-emerald-700 block font-bold">3. Description</span>
               <span className="text-xs font-medium text-emerald-900 line-clamp-2">
                 {currentAnswers.description || '— Awaiting Input'}
               </span>
@@ -821,13 +868,13 @@ export const WebChat: React.FC<WebChatProps> = ({
             {/* Q5 & Q6: VAT & Payment Method */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">5. VAT Status (ভ্যাট)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">5. VAT Status</span>
                 <span className="text-xs font-semibold text-emerald-950 truncate block">
                   {currentAnswers.vatStatus || '—'}
                 </span>
               </div>
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">6. Payment Mode (পেমেন্ট)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">6. Payment Mode</span>
                 <span className="text-xs font-semibold text-emerald-950 truncate block">
                   {currentAnswers.paymentMethod || '—'}
                 </span>
@@ -837,13 +884,13 @@ export const WebChat: React.FC<WebChatProps> = ({
             {/* Q7 & Q8: Project & Approver */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">7. Project (প্রজেক্ট)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">7. Project</span>
                 <span className="text-xs font-semibold text-emerald-950 truncate block">
                   {currentAnswers.project || '—'}
                 </span>
               </div>
               <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 block font-bold">8. Approver (অনুমোদনকারী)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">8. Approver</span>
                 <span className="text-xs font-semibold text-emerald-950 truncate block">
                   {currentAnswers.approvedBy || '—'}
                 </span>
@@ -853,7 +900,7 @@ export const WebChat: React.FC<WebChatProps> = ({
             {/* Q9: Receipt File */}
             <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-emerald-700 block font-bold">9. Invoice Photo (ইনভয়েস ছবি)</span>
+                <span className="text-[10px] text-emerald-700 block font-bold">8. Invoice Photo</span>
                 <span className="text-xs font-semibold text-emerald-950 truncate block">
                   {receiptFile?.name || (currentAnswers.receiptUrl ? 'Image Attached' : 'None')}
                 </span>

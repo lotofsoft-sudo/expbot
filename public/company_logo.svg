@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350" width="1000" height="350" style="background:#ffffff;">
+  <defs>
+    <!-- Deep Gradient for English typography -->
+    <linearGradient id="wafaqBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0e56cc" />
+      <stop offset="45%" stop-color="#043a9e" />
+      <stop offset="100%" stop-color="#012269" />
+    </linearGradient>
+    
+    <!-- Tapered line gradients -->
+    <linearGradient id="leftLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0847b0" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#0847b0" stop-opacity="1" />
+    </linearGradient>
+    
+    <linearGradient id="rightLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0847b0" stop-opacity="1" />
+      <stop offset="100%" stop-color="#0847b0" stop-opacity="0.1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1000" height="350" fill="#ffffff" />
+
+  <g transform="translate(0,0)">
+    <!-- Left Horizontal Accent Line -->
+    <polygon points="60,118 330,118 330,123 60,119" fill="url(#leftLineGrad)" />
+    
+    <!-- Right Horizontal Accent Line -->
+    <polygon points="670,118 940,118 940,123 670,123" fill="url(#rightLineGrad)" />
+
+    <!-- Top Arabic Text: شركة وافاك -->
+    <text x="500" y="132" text-anchor="middle" font-family="'Traditional Arabic', 'Segoe UI', 'Amiri', 'Noto Naskh Arabic', Arial, sans-serif" font-weight="900" font-size="52" fill="#043a9e">
+      شركة وافاك
+    </text>
+
+    <!-- Bottom English Text: WAFAQ COMPANY -->
+    <text x="500" y="242" text-anchor="middle" font-family="'Montserrat', 'Arial Black', 'Impact', 'Trebuchet MS', sans-serif" font-weight="900" font-size="78" letter-spacing="4" fill="url(#wafaqBlue)">
+      WAFAQ COMPANY
+    </text>
+  </g>
+</svg>

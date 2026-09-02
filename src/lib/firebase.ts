@@ -167,11 +167,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Sales & Field Operations (Riyadh)',
           amount: 280.00,
           currency: 'SAR',
-          category: 'Travel & Transport (যাতায়াত ও পরিবহন)',
+          category: 'Travel & Transport',
           description: 'Client Visit Taxi Fare & Fuel across Riyadh North Business Center',
           totalAmount: 280.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Cash (ক্যাশ)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Cash',
           project: 'Riyadh Metro Expansion Client Meet',
           approvedBy: 'Faisal Al-Otaibi',
           date: todayStr,
@@ -190,11 +190,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Sales & Field Operations (Riyadh)',
           amount: 450.00,
           currency: 'SAR',
-          category: 'Food & Entertainment (খাবার ও আপ্যায়ন)',
+          category: 'Food & Entertainment',
           description: 'Official Business Lunch with Aramco Procurement Delegation',
           totalAmount: 450.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Bank Transfer (ব্যাংক ট্রান্সফার)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Bank Transfer',
           project: 'Aramco Vendor Onboarding',
           approvedBy: 'Faisal Al-Otaibi',
           approverNotes: 'Verified with official receipt.',
@@ -215,11 +215,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Sales & Field Operations (Riyadh)',
           amount: 150.00,
           currency: 'SAR',
-          category: 'Office Supplies (অফিস সামগ্রী ও স্টেশনারি)',
+          category: 'Office Supplies',
           description: 'Proposal presentation color prints & binding for Ministry tender',
           totalAmount: 150.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Cash (ক্যাশ)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Cash',
           project: 'Ministry of Transport Tender',
           approvedBy: 'Faisal Al-Otaibi',
           approverNotes: 'Approved for urgent tender submission.',
@@ -240,11 +240,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Logistics & Supply Chain',
           amount: 620.00,
           currency: 'SAR',
-          category: 'Fuel & Vehicle (জ্বালানি ও যানবাহন খরচ)',
+          category: 'Fuel & Vehicle',
           description: 'Warehouse delivery truck diesel fuel & Jeddah highway toll tax',
           totalAmount: 620.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Cash (ক্যাশ)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Cash',
           project: 'Jeddah Port Distribution',
           approvedBy: 'Faisal Al-Otaibi',
           date: d3,
@@ -263,11 +263,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Site Engineering & Projects',
           amount: 1250.00,
           currency: 'SAR',
-          category: 'Site Equipment (সাইট সরঞ্জাম ও যন্ত্রপাতি)',
+          category: 'Site Equipment',
           description: 'Emergency safety helmets, reflective jackets & laser level meters',
           totalAmount: 1250.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Bank Transfer (ব্যাংক ট্রান্সফার)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Bank Transfer',
           project: 'Diriyah Heritage Site Construction',
           approvedBy: 'Faisal Al-Otaibi',
           date: d4,
@@ -286,11 +286,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Marketing & Client Relations',
           amount: 890.00,
           currency: 'SAR',
-          category: 'Advertising & Promotion (বিজ্ঞাপন ও প্রচার)',
+          category: 'Advertising & Promotion',
           description: 'Digital promotional booth roll-ups and Riyadh Expo brochures',
           totalAmount: 890.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Bank Transfer (ব্যাংক ট্রান্সফার)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Bank Transfer',
           project: 'Riyadh Tech Expo 2026',
           approvedBy: 'Faisal Al-Otaibi',
           date: d5,
@@ -309,11 +309,11 @@ export async function seedInitialDataIfNeeded() {
           department: 'Sales & Field Operations (Riyadh)',
           amount: 1100.00,
           currency: 'SAR',
-          category: 'Hotel & Accommodation (হোটেল ও আবাসন)',
+          category: 'Hotel & Accommodation',
           description: '3-Day Dammam Regional Branch Sales Summit Hotel stay',
           totalAmount: 1100.00,
-          vatStatus: 'With VAT (ভ্যাট সহ)',
-          paymentMethod: 'Bank Transfer (ব্যাংক ট্রান্সফার)',
+          vatStatus: 'With VAT',
+          paymentMethod: 'Bank Transfer',
           project: 'Eastern Province Expansion',
           approvedBy: 'Faisal Al-Otaibi',
           date: d6,
@@ -945,5 +945,23 @@ export async function deleteUserFromFirestore(userId: string): Promise<boolean> 
     return false;
   }
 }
+
+// Delete Expense from Firestore
+export async function deleteExpenseFromFirestore(expenseId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, 'expenses', expenseId));
+    const cached = localStorage.getItem(LOCAL_STORAGE_EXPENSES_KEY);
+    if (cached) {
+      const list: Expense[] = JSON.parse(cached);
+      const updated = list.filter((e) => e.id !== expenseId);
+      localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, JSON.stringify(updated));
+    }
+    return true;
+  } catch (err) {
+    console.error('Error deleting expense from Firestore:', err);
+    return false;
+  }
+}
+
 
 

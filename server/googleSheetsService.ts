@@ -186,10 +186,14 @@ export function cleanCellForSheet(value: any): string | number | boolean {
 /**
  * Normalizes private key from various input shapes (e.g. JSON-escaped \n, raw PEM, or encrypted cipher)
  */
-function extractPrivateKey(config: BackendGoogleSheetsConfig): string {
+export function extractPrivateKey(config: BackendGoogleSheetsConfig): string {
   let rawKey = config.serviceAccountPrivateKey || '';
   if (!rawKey && config.encryptedPrivateKey) {
-    rawKey = decryptSecret(config.encryptedPrivateKey);
+    try {
+      rawKey = decryptSecret(config.encryptedPrivateKey);
+    } catch {
+      // ignore
+    }
   }
 
   // Fallback to process.env if still empty
@@ -241,13 +245,12 @@ export function getGoogleAuthClient(config: BackendGoogleSheetsConfig) {
  * Translates Google Sheets API / Auth error into clear diagnostic message
  */
 export function formatGoogleError(err: any, config?: BackendGoogleSheetsConfig): string {
-  const message = err.message || '';
-  const code = err.code || err.status;
+  const message = err?.message || String(err || '');
+  const code = err?.code || err?.status;
 
-  console.error('[Google Sheets API Internal Error]:', {
+  console.warn('[Google Sheets API Service Notice]:', {
     code,
-    message,
-    stack: err.stack
+    message
   });
 
   if (
@@ -255,10 +258,13 @@ export function formatGoogleError(err: any, config?: BackendGoogleSheetsConfig):
     message.includes('unsupported') ||
     message.includes('PEM') ||
     message.includes('invalid_grant') ||
+    message.includes('Invalid JWT Signature') ||
     message.includes('private key') ||
-    message.includes('asn1')
+    message.includes('asn1') ||
+    message.includes('JWT') ||
+    message.includes('signature')
   ) {
-    return 'Invalid Service Account Private Key format. The private key could not be decoded. Please upload your downloaded service-account-key.json file or paste the complete private key including "-----BEGIN PRIVATE KEY-----".';
+    return 'Invalid Service Account Private Key format or signature mismatch (invalid_grant). The private key could not be authenticated by Google. Please upload your downloaded service-account-key.json file or paste the complete valid private key matching your Service Account email.';
   }
 
   if (code === 404 || message.includes('Requested entity was not found') || message.includes('Spreadsheet ID')) {

@@ -21,6 +21,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [newName, setNewName] = useState<string>('');
+  const [newIqama, setNewIqama] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
   const [newId, setNewId] = useState<string>('');
   const [newEmail, setNewEmail] = useState<string>('');
   const [newDept, setNewDept] = useState<string>('Sales & Field Operations');
@@ -37,6 +39,8 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
     const user: AppUser = {
       uid: `usr_${Date.now()}`,
       displayName: newName.trim(),
+      iqama: newIqama.trim() || '2400000000',
+      password: newPassword.trim() || `Pass@${Math.floor(1000 + Math.random() * 9000)}`,
       employeeId: newId.trim(),
       email: newEmail.trim() || `${newName.toLowerCase().replace(/\s+/g, '.')}@alfalak.sa`,
       department: newDept.trim(),
@@ -153,6 +157,30 @@ export const RoleSwitcherModal: React.FC<RoleSwitcherModalProps> = ({
                 onChange={(e) => setNewName(e.target.value)}
                 className="w-full bg-emerald-50/60 border border-emerald-300 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="font-bold text-emerald-900 block">ইকামা নম্বর (Iqama)</label>
+                <input
+                  type="text"
+                  placeholder="2418920192"
+                  value={newIqama}
+                  onChange={(e) => setNewIqama(e.target.value)}
+                  className="w-full bg-emerald-50/60 border border-emerald-300 rounded-xl px-3 py-2 text-emerald-950 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-emerald-900 block">লগইন পাসওয়ার্ড</label>
+                <input
+                  type="text"
+                  placeholder="UserPass@2026"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-emerald-50/60 border border-emerald-300 rounded-xl px-3 py-2 text-emerald-950 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
             </div>
 
             <div className="space-y-1">

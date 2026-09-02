@@ -631,9 +631,6 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
               <span>Telegram Bot Settings</span>
-              <span className="text-sm font-normal text-emerald-300 bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-700/50">
-                টেলিগ্রাম বট সেটিংস
-              </span>
             </h1>
             <p className="text-emerald-200 text-sm max-w-2xl">
               Connect your Telegram Bot with 1-click webhook setup, manage custom bot commands, and configure instant intelligent automated replies for employees.
@@ -873,7 +870,7 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
               <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center text-xs font-bold">
                 📖
               </div>
-              <h3 className="text-sm font-bold text-emerald-950">How to Setup Telegram Bot (সহজ গাইড)</h3>
+              <h3 className="text-sm font-bold text-emerald-950">How to Setup Telegram Bot</h3>
             </div>
 
             <ol className="space-y-3 text-xs text-emerald-900">
@@ -1284,7 +1281,7 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
 
               {/* Dynamic Variables Chips */}
               <div className="space-y-1.5">
-                <label className="font-bold text-emerald-950">Insert Dynamic Variables (ক্লিক করে যোগ করুন):</label>
+                <label className="font-bold text-emerald-950">Insert Dynamic Variables (Click to add):</label>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     '{user_name}',

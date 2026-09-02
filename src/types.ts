@@ -10,6 +10,10 @@ export interface AppUser {
   designation?: string;
   phone?: string;
   telegramHandle?: string;
+  iqama?: string;
+  password?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type StatementPeriodType = 'weekly' | 'monthly' | 'yearly' | 'custom' | 'all';

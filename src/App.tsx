@@ -3,12 +3,14 @@ import { Header } from './components/Header';
 import { WebChat } from './components/WebChat';
 import { ApprovalDashboard } from './components/ApprovalDashboard';
 import { EmployeeStatementView } from './components/EmployeeStatementView';
+import { EmployeeDirectoryView } from './components/EmployeeDirectoryView';
 import { TelegramSimulator } from './components/TelegramSimulator';
 import { TelegramBotSettings } from './components/TelegramBotSettings';
 import { BotQuestionBuilder } from './components/BotQuestionBuilder';
 import { GoogleSheetsView } from './components/GoogleSheetsView';
 import { SettingsModal } from './components/SettingsModal';
 import { RoleSwitcherModal } from './components/RoleSwitcherModal';
+import { LoginModal } from './components/LoginModal';
 
 import {
   Expense,
@@ -20,7 +22,8 @@ import {
   SyncLog,
   ApprovalPdfConfig,
   TelegramCommand,
-  TelegramBotConfig
+  TelegramBotConfig,
+  LanguageMode
 } from './types';
 
 import {
@@ -43,18 +46,28 @@ import {
   saveTelegramCommandsToFirestore,
   saveTelegramBotConfigToFirestore,
   saveUserToFirestore,
+  deleteUserFromFirestore,
+  deleteExpenseFromFirestore,
   addSyncLogToFirestore,
   DEFAULT_SHEETS_CONFIG
 } from './lib/firebase';
 
 import { DEFAULT_BOT_QUESTIONS, DEFAULT_SETTINGS, INITIAL_USERS } from './data/defaultQuestions';
 import { DEFAULT_TELEGRAM_COMMANDS } from './data/defaultTelegramCommands';
-import { MessageSquare, CheckSquare, FileSpreadsheet, Bot, SlidersHorizontal, Sliders, FileText } from 'lucide-react';
+import { MessageSquare, CheckSquare, FileSpreadsheet, Bot, SlidersHorizontal, Sliders, FileText, Users } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<AppUser>(INITIAL_USERS[0]);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
+    const savedId = localStorage.getItem('expenseflow_user_id');
+    if (savedId) {
+      const found = INITIAL_USERS.find((u) => u.uid === savedId);
+      if (found) return found;
+    }
+    return INITIAL_USERS[0];
+  });
   const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
   const [activeTab, setActiveTab] = useState<string>('chat');
+  const [appLanguage, setAppLanguage] = useState<LanguageMode>('en');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [botQuestions, setBotQuestions] = useState<BotQuestion[]>(DEFAULT_BOT_QUESTIONS);
   const [telegramCommands, setTelegramCommands] = useState<TelegramCommand[]>(DEFAULT_TELEGRAM_COMMANDS);
@@ -69,6 +82,7 @@ export default function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isRoleSwitcherOpen, setIsRoleSwitcherOpen] = useState<boolean>(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
 
   // Initialize Firebase Firestore seed & real-time subscriptions
   useEffect(() => {
@@ -78,9 +92,11 @@ export default function App() {
       if (userList && userList.length > 0) {
         setUsers(userList);
         // keep currentUser in sync if updated
-        const found = userList.find((u) => u.uid === currentUser.uid);
-        if (found) {
-          setCurrentUser(found);
+        if (currentUser) {
+          const found = userList.find((u) => u.uid === currentUser.uid);
+          if (found) {
+            setCurrentUser(found);
+          }
         }
       }
     });
@@ -311,6 +327,49 @@ export default function App() {
     return success;
   };
 
+  // Handle Employee Delete
+  const handleDeleteUser = async (userId: string) => {
+    const success = await deleteUserFromFirestore(userId);
+    if (success) {
+      setUsers((prev) => prev.filter((u) => u.uid !== userId));
+    }
+    return success;
+  };
+
+  // Handle Edit Expense (Admin)
+  const handleEditExpense = async (updatedExpense: Expense) => {
+    const success = await saveExpenseToFirestore(updatedExpense);
+    return success;
+  };
+
+  // Handle Delete Expense (Admin)
+  const handleDeleteExpense = async (expenseId: string) => {
+    const success = await deleteExpenseFromFirestore(expenseId);
+    return success;
+  };
+
+  // Handle Login & Logout
+  const handleLogin = (user: AppUser) => {
+    setCurrentUser(user);
+    localStorage.setItem('expenseflow_user_id', user.uid);
+    setIsLoginModalOpen(false);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('expenseflow_user_id');
+    setIsLoginModalOpen(true);
+  };
+
+  // Restrict Non-Admin Employees to Chat, Statements, Approvals tabs only
+  useEffect(() => {
+    if (!currentUser) return;
+    const isAdmin = currentUser.role === 'admin';
+    if (!isAdmin && !['chat', 'statements', 'approvals'].includes(activeTab)) {
+      setActiveTab('chat');
+    }
+  }, [currentUser, activeTab]);
+
   // Reset Demo Data
   const handleResetDemoData = async () => {
     localStorage.clear();
@@ -322,8 +381,14 @@ export default function App() {
 
   const pendingCount = expenses.filter((e) => e.status === 'pending').length;
 
-  const mobileNavItems = [
+  const isAdmin = currentUser?.role === 'admin';
+  const allowedTabIds = isAdmin
+    ? ['chat', 'employees', 'statements', 'approvals', 'sheets', 'telegram', 'tg_settings', 'questions']
+    : ['chat', 'statements', 'approvals'];
+
+  const allMobileNavItems = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'employees', label: 'Employee', icon: Users },
     { id: 'statements', label: 'Statements', icon: FileText },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare, badge: pendingCount },
     { id: 'sheets', label: 'Sheets', icon: FileSpreadsheet },
@@ -331,6 +396,10 @@ export default function App() {
     { id: 'tg_settings', label: 'TG Settings', icon: Sliders },
     { id: 'questions', label: 'Flow', icon: SlidersHorizontal }
   ];
+
+  const mobileNavItems = allMobileNavItems.filter((item) => allowedTabIds.includes(item.id));
+
+  const effectiveUser = currentUser || users[0];
 
   return (
     <div className="min-h-screen bg-[#f4f9f5] text-emerald-950 font-sans flex flex-col justify-between selection:bg-emerald-200 selection:text-emerald-950 pb-16 md:pb-0">
@@ -343,18 +412,34 @@ export default function App() {
           pendingApprovalCount={pendingCount}
           openSettings={() => setIsSettingsOpen(true)}
           openRoleSwitcher={() => setIsRoleSwitcherOpen(true)}
+          appLanguage={appLanguage}
+          onLanguageChange={setAppLanguage}
+          onLoginClick={() => setIsLoginModalOpen(true)}
+          onLogoutClick={handleLogout}
         />
 
         {/* Main Content Area */}
         <main className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-7 space-y-5">
           {activeTab === 'chat' && (
             <WebChat
-              currentUser={currentUser}
+              currentUser={effectiveUser}
               botQuestions={botQuestions}
               appSettings={appSettings}
               onExpenseSubmitted={handleExpenseSubmitted}
               recentExpenses={expenses}
               onSavePdfConfig={handleSavePdfConfig}
+              appLanguage={appLanguage}
+              onLanguageChange={setAppLanguage}
+            />
+          )}
+
+          {activeTab === 'employees' && (
+            <EmployeeDirectoryView
+              users={users}
+              currentUser={effectiveUser}
+              onSaveUser={handleSaveUser}
+              onDeleteUser={handleDeleteUser}
+              onSelectCurrentUser={(selectedUser) => handleLogin(selectedUser)}
             />
           )}
 
@@ -362,34 +447,40 @@ export default function App() {
             <EmployeeStatementView
               expenses={expenses}
               users={users}
-              currentUser={currentUser}
+              currentUser={effectiveUser}
               appSettings={appSettings}
               onSaveUser={handleSaveUser}
-              onSelectCurrentUser={(selectedUser) => setCurrentUser(selectedUser)}
+              onSelectCurrentUser={(selectedUser) => handleLogin(selectedUser)}
               onSavePdfConfig={handleSavePdfConfig}
+              onEditExpense={handleEditExpense}
+              onDeleteExpense={handleDeleteExpense}
             />
           )}
 
           {activeTab === 'approvals' && (
             <ApprovalDashboard
               expenses={expenses}
-              currentUser={currentUser}
+              currentUser={effectiveUser}
               appSettings={appSettings}
               onUpdateStatus={handleUpdateStatus}
               onSyncToSheets={handleManualSyncSheets}
               onSavePdfConfig={handleSavePdfConfig}
+              onEditExpense={handleEditExpense}
+              onDeleteExpense={handleDeleteExpense}
             />
           )}
 
           {activeTab === 'telegram' && (
             <TelegramSimulator
               appSettings={appSettings}
-              currentUser={currentUser}
+              currentUser={effectiveUser}
               botQuestions={botQuestions}
               telegramCommands={telegramCommands}
               onExpenseSubmitted={handleExpenseSubmitted}
               recentExpenses={expenses}
               onSavePdfConfig={handleSavePdfConfig}
+              appLanguage={appLanguage}
+              onLanguageChange={setAppLanguage}
             />
           )}
 
@@ -399,7 +490,7 @@ export default function App() {
               commands={telegramCommands}
               telegramConfig={telegramConfig}
               expenses={expenses}
-              currentUser={currentUser}
+              currentUser={effectiveUser}
               onSaveCommands={handleSaveTelegramCommands}
               onSaveTelegramConfig={handleSaveTelegramConfig}
             />
@@ -410,6 +501,8 @@ export default function App() {
               questions={botQuestions}
               onSaveQuestions={handleSaveQuestions}
               onResetDefaults={() => handleSaveQuestions(DEFAULT_BOT_QUESTIONS)}
+              appLanguage={appLanguage}
+              onLanguageChange={setAppLanguage}
             />
           )}
 
@@ -477,16 +570,28 @@ export default function App() {
         appSettings={appSettings}
         onSaveSettings={handleSaveSettings}
         onResetData={handleResetDemoData}
+        appLanguage={appLanguage}
+        onLanguageChange={setAppLanguage}
       />
 
-      {/* Role Switcher Modal */}
+      {/* Role Switcher Modal (Admin Only) */}
       <RoleSwitcherModal
-        isOpen={isRoleSwitcherOpen}
+        isOpen={isRoleSwitcherOpen && isAdmin}
         onClose={() => setIsRoleSwitcherOpen(false)}
-        currentUser={currentUser}
+        currentUser={effectiveUser}
         users={users}
-        onSelectUser={setCurrentUser}
+        onSelectUser={handleLogin}
         onSaveUser={handleSaveUser}
+      />
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen || !currentUser}
+        onClose={() => setIsLoginModalOpen(false)}
+        users={users}
+        currentUser={currentUser}
+        onLogin={handleLogin}
+        isForcedLogin={!currentUser}
       />
     </div>
   );
