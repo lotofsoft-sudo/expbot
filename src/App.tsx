@@ -89,7 +89,7 @@ export default function App() {
     seedInitialDataIfNeeded();
 
     const unsubUsers = subscribeUsers((userList) => {
-      if (userList && userList.length > 0) {
+      if (userList) {
         setUsers(userList);
         // keep currentUser in sync if updated
         if (currentUser) {
@@ -102,27 +102,27 @@ export default function App() {
     });
 
     const unsubExp = subscribeExpenses((data) => {
-      setExpenses(data);
+      setExpenses(data || []);
     });
 
     const unsubQuestions = subscribeBotQuestions((qs) => {
-      setBotQuestions(qs);
+      setBotQuestions(qs || []);
     });
 
     const unsubSettings = subscribeAppSettings((st) => {
-      setAppSettings(st);
+      if (st) setAppSettings(st);
     });
 
     const unsubSheets = subscribeGoogleSheetsConfig((cfg) => {
-      setSheetsConfig(cfg);
+      if (cfg) setSheetsConfig(cfg);
     });
 
     const unsubLogs = subscribeSyncLogs((logs) => {
-      setSyncLogs(logs);
+      setSyncLogs(logs || []);
     });
 
     const unsubCommands = subscribeTelegramCommands((cmds) => {
-      if (cmds && cmds.length > 0) {
+      if (cmds) {
         setTelegramCommands(cmds);
       }
     });

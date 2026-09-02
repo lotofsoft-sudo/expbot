@@ -115,6 +115,16 @@ export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
 // Seed initial demo data in Firestore or local state if empty
 export async function seedInitialDataIfNeeded() {
   try {
+    const seedMarkerRef = doc(db, 'app_settings', 'system_seed_initialized');
+    const seedMarkerSnap = await getDoc(seedMarkerRef);
+
+    if (seedMarkerSnap.exists()) {
+      // Seed has already been executed. Do NOT re-seed deleted items.
+      return;
+    }
+
+    console.log('Performing one-time initial seed to Firestore...');
+
     // 1. Seed Users if needed
     const usersSnap = await getDocs(collection(db, 'app_users'));
     if (usersSnap.empty) {
@@ -143,6 +153,15 @@ export async function seedInitialDataIfNeeded() {
     if (!sheetsConfigDoc.exists()) {
       console.log('Seeding initial Google Sheets config...');
       await setDoc(doc(db, 'app_settings', 'google_sheets_config'), DEFAULT_SHEETS_CONFIG);
+    }
+
+    const tgCommandsSnap = await getDocs(collection(db, 'telegram_commands'));
+    if (tgCommandsSnap.empty) {
+      console.log('Seeding initial Telegram commands to Firestore...');
+      for (let i = 0; i < DEFAULT_TELEGRAM_COMMANDS.length; i++) {
+        const cmd = { ...DEFAULT_TELEGRAM_COMMANDS[i], order: i + 1, updatedAt: new Date().toISOString() };
+        await setDoc(doc(db, 'telegram_commands', cmd.id), cmd);
+      }
     }
 
     const expSnap = await getDocs(collection(db, 'expenses'));
@@ -329,6 +348,9 @@ export async function seedInitialDataIfNeeded() {
         await setDoc(doc(db, 'expenses', e.id), e);
       }
     }
+
+    // Mark seed initialized so future refreshes will never re-create deleted items
+    await setDoc(seedMarkerRef, { initialized: true, seededAt: new Date().toISOString() });
   } catch (err) {
     console.warn('Firestore seed warning (offline/permission fallback enabled):', err);
   }
@@ -693,20 +715,24 @@ export function subscribeBotQuestions(callback: (questions: BotQuestion[]) => vo
       snapshot.forEach((docSnap) => {
         items.push(docSnap.data() as BotQuestion);
       });
-      if (items.length > 0) {
-        callback(items);
-        localStorage.setItem(LOCAL_STORAGE_QUESTIONS_KEY, JSON.stringify(items));
-      } else {
-        callback(DEFAULT_BOT_QUESTIONS);
-      }
+      callback(items);
+      localStorage.setItem(LOCAL_STORAGE_QUESTIONS_KEY, JSON.stringify(items));
     }, (error) => {
       console.warn('Bot questions subscription error:', error);
       const cached = localStorage.getItem(LOCAL_STORAGE_QUESTIONS_KEY);
-      callback(cached ? JSON.parse(cached) : DEFAULT_BOT_QUESTIONS);
+      if (cached) {
+        callback(JSON.parse(cached));
+      } else {
+        callback(DEFAULT_BOT_QUESTIONS);
+      }
     });
   } catch (err) {
     const cached = localStorage.getItem(LOCAL_STORAGE_QUESTIONS_KEY);
-    callback(cached ? JSON.parse(cached) : DEFAULT_BOT_QUESTIONS);
+    if (cached) {
+      callback(JSON.parse(cached));
+    } else {
+      callback(DEFAULT_BOT_QUESTIONS);
+    }
     return () => {};
   }
 }
@@ -798,20 +824,24 @@ export function subscribeTelegramCommands(callback: (commands: TelegramCommand[]
       snapshot.forEach((docSnap) => {
         items.push(docSnap.data() as TelegramCommand);
       });
-      if (items.length > 0) {
-        callback(items);
-        localStorage.setItem(LOCAL_STORAGE_TELEGRAM_COMMANDS_KEY, JSON.stringify(items));
-      } else {
-        callback(DEFAULT_TELEGRAM_COMMANDS);
-      }
+      callback(items);
+      localStorage.setItem(LOCAL_STORAGE_TELEGRAM_COMMANDS_KEY, JSON.stringify(items));
     }, (error) => {
       console.warn('Telegram commands subscription error:', error);
       const cached = localStorage.getItem(LOCAL_STORAGE_TELEGRAM_COMMANDS_KEY);
-      callback(cached ? JSON.parse(cached) : DEFAULT_TELEGRAM_COMMANDS);
+      if (cached) {
+        callback(JSON.parse(cached));
+      } else {
+        callback(DEFAULT_TELEGRAM_COMMANDS);
+      }
     });
   } catch (err) {
     const cached = localStorage.getItem(LOCAL_STORAGE_TELEGRAM_COMMANDS_KEY);
-    callback(cached ? JSON.parse(cached) : DEFAULT_TELEGRAM_COMMANDS);
+    if (cached) {
+      callback(JSON.parse(cached));
+    } else {
+      callback(DEFAULT_TELEGRAM_COMMANDS);
+    }
     return () => {};
   }
 }
@@ -892,20 +922,24 @@ export function subscribeUsers(callback: (users: AppUser[]) => void) {
       snapshot.forEach((docSnap) => {
         items.push(docSnap.data() as AppUser);
       });
-      if (items.length > 0) {
-        callback(items);
-        localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(items));
-      } else {
-        callback(INITIAL_USERS);
-      }
+      callback(items);
+      localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(items));
     }, (error) => {
       console.warn('Users subscription error:', error);
       const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
-      callback(cached ? JSON.parse(cached) : INITIAL_USERS);
+      if (cached) {
+        callback(JSON.parse(cached));
+      } else {
+        callback(INITIAL_USERS);
+      }
     });
   } catch (err) {
     const cached = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
-    callback(cached ? JSON.parse(cached) : INITIAL_USERS);
+    if (cached) {
+      callback(JSON.parse(cached));
+    } else {
+      callback(INITIAL_USERS);
+    }
     return () => {};
   }
 }
