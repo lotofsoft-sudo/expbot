@@ -115,13 +115,22 @@ export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
 // Seed initial demo data in Firestore or local state if empty
 export async function seedInitialDataIfNeeded() {
   try {
+    const isLocalSeeded = localStorage.getItem('system_seed_initialized');
+    if (isLocalSeeded === 'true') {
+      return;
+    }
+
     const seedMarkerRef = doc(db, 'app_settings', 'system_seed_initialized');
     const seedMarkerSnap = await getDoc(seedMarkerRef);
 
     if (seedMarkerSnap.exists()) {
-      // Seed has already been executed. Do NOT re-seed deleted items.
+      localStorage.setItem('system_seed_initialized', 'true');
       return;
     }
+
+    // Mark initialized immediately so future reloads will never re-seed deleted items
+    localStorage.setItem('system_seed_initialized', 'true');
+    await setDoc(seedMarkerRef, { initialized: true, seededAt: new Date().toISOString() });
 
     console.log('Performing one-time initial seed to Firestore...');
 
@@ -993,7 +1002,14 @@ export async function deleteExpenseFromFirestore(expenseId: string): Promise<boo
     return true;
   } catch (err) {
     console.error('Error deleting expense from Firestore:', err);
-    return false;
+    // Cleanup local storage even if network error occurs
+    const cached = localStorage.getItem(LOCAL_STORAGE_EXPENSES_KEY);
+    if (cached) {
+      const list: Expense[] = JSON.parse(cached);
+      const updated = list.filter((e) => e.id !== expenseId);
+      localStorage.setItem(LOCAL_STORAGE_EXPENSES_KEY, JSON.stringify(updated));
+    }
+    return true;
   }
 }
 

@@ -344,6 +344,7 @@ export default function App() {
 
   // Handle Delete Expense (Admin)
   const handleDeleteExpense = async (expenseId: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
     const success = await deleteExpenseFromFirestore(expenseId);
     return success;
   };
