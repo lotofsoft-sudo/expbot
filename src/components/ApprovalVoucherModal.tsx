@@ -14,6 +14,52 @@ import {
   Loader2
 } from 'lucide-react';
 
+
+export function sanitizeEnglishTextForPdf(input: string | undefined | null): string {
+  if (!input) return '';
+  let text = String(input);
+
+  const dictionary: Array<[RegExp, string]> = [
+    [/ভ্যাট\s*সহ/gi, 'With VAT'],
+    [/উইদাউট\s*ভ্যাট/gi, 'Without VAT'],
+    [/ভ্যাট\s*ছাড়া/gi, 'Without VAT'],
+    [/ভ্যাট/gi, 'VAT'],
+    [/ক্যাশ/gi, 'Cash'],
+    [/ব্যাংক\s*ট্রান্সফার/gi, 'Bank Transfer'],
+    [/ব্যাংক/gi, 'Bank'],
+    [/ক্রেডিট\s*কার্ড/gi, 'Credit Card'],
+    [/অপেক্ষমান/gi, 'Pending'],
+    [/অনুমোদিত/gi, 'Approved'],
+    [/বাতিল/gi, 'Rejected'],
+    [/ছবি\s*দিয়েছি/gi, 'Receipt Attached'],
+    [/রসিদ\s*নেই/gi, 'No Receipt'],
+    [/রসিদ/gi, 'Receipt'],
+    [/ছবি/gi, 'Photo'],
+    [/টাকা/gi, 'SAR'],
+    [/যাতায়াত\s*ও\s*পরিবহন/gi, 'Travel & Transport'],
+    [/ক্লায়েন্ট\s*ডাইনিং\s*ও\s*খাবার/gi, 'Client Dining & Meals'],
+    [/ক্লায়েন্ট\s*ডাইনিং/gi, 'Client Dining'],
+    [/অফিস\s*সাপ্লাই\s*ও\s*স্টেশনারি/gi, 'Office Supplies & Stationery'],
+    [/অফিস\s*সাপ্লাই/gi, 'Office Supplies'],
+    [/সফটওয়্যার\s*ও\s*ক্লাউড/gi, 'Software & Cloud Services'],
+    [/হোটেল\s*ও\s*বাসস্থান/gi, 'Hotel & Accommodation'],
+    [/ফুয়েল\s*ও\s*গাড়ি\s*মেরামত/gi, 'Fuel & Vehicle Maintenance'],
+    [/অন্যান্য\s*ব্যবসায়িক\s*খরচ/gi, 'Miscellaneous Business'],
+    [/অন্যান্য/gi, 'Miscellaneous'],
+    [/হ্যাঁ/gi, 'Yes'],
+    [/না/gi, 'No']
+  ];
+
+  for (const [regex, replacement] of dictionary) {
+    text = text.replace(regex, replacement);
+  }
+
+  // Remove any remaining Bengali Unicode characters
+  text = text.replace(/[\u0980-\u09FF]+/g, '').trim();
+
+  return text;
+}
+
 interface ApprovalVoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -215,7 +261,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   @page { size: landscape; margin: 4mm; }
                   body { margin: 0; padding: 12px; font-family: Calibri, Arial, sans-serif; background: #ffffff; color: #000000; }
                   table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-                  img { max-height: 70px; width: auto; object-fit: contain; }
+                  img { max-height: 95px; width: 100%; max-width: 380px; object-fit: contain; margin: 0 auto; display: block; }
                   @media print {
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                   }
@@ -259,17 +305,23 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
 
   const handleDownloadCsv = () => {
     const csvRows: string[][] = [];
-    csvRows.push(['', ' PROJECT', projectName, '', '', 'MPR No', mprNo, companyAddress]);
-    csvRows.push(['', 'Company', companyName, '', '', 'Date Request', dateRequest]);
-    csvRows.push(['', 'Payment  Month', paymentMonth, '', '', 'Required date', requiredDate]);
-    csvRows.push(['', 'Expanses By', expansesBy, '', '', '', '']);
+    csvRows.push(['', ' PROJECT', sanitizeEnglishTextForPdf(projectName), '', '', 'MPR No', mprNo, sanitizeEnglishTextForPdf(companyAddress)]);
+    csvRows.push(['', 'Company', sanitizeEnglishTextForPdf(companyName), '', '', 'Date Request', dateRequest]);
+    csvRows.push(['', 'Payment  Month', sanitizeEnglishTextForPdf(paymentMonth), '', '', 'Required date', requiredDate]);
+    csvRows.push(['', 'Expanses By', sanitizeEnglishTextForPdf(expansesBy), '', '', '', '']);
     csvRows.push(['', '', '', '', '', '', '', '']);
     csvRows.push(['', 'Inv.No', 'Description', '', 'Quantity', 'Price ', ' Amount', 'Remarks']);
 
     expenses.forEach((exp, idx) => {
       const invNum = String(idx + 1).padStart(2, '0');
-      const desc = `${exp.category ? `[${exp.category}] ` : ''}${exp.description || ''}`;
-      const remarks = [exp.vatStatus || '', exp.paymentMethod || '', exp.project ? `Proj: ${exp.project}` : '']
+      const cat = sanitizeEnglishTextForPdf(exp.category);
+      const descText = sanitizeEnglishTextForPdf(exp.description);
+      const desc = `${cat ? `[${cat}] ` : ''}${descText}`;
+      const remarks = [
+        sanitizeEnglishTextForPdf(exp.vatStatus),
+        sanitizeEnglishTextForPdf(exp.paymentMethod),
+        exp.project ? `Proj: ${sanitizeEnglishTextForPdf(exp.project)}` : ''
+      ]
         .filter(Boolean)
         .join(' | ');
 
@@ -289,18 +341,18 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
     csvRows.push(['', '', '', '', '', '', '', '']);
 
     const chk1 = accountDeptCheckers[0]
-      ? `        ${accountDeptCheckers[0].checked ? '☑' : '□'} ${accountDeptCheckers[0].name}`
+      ? `        ${accountDeptCheckers[0].checked ? '☑' : '□'} ${sanitizeEnglishTextForPdf(accountDeptCheckers[0].name)}`
       : '        □ Mr. Javeed Hikady';
     const chk2 = accountDeptCheckers[1]
-      ? `            ${accountDeptCheckers[1].checked ? '☑' : '□'} ${accountDeptCheckers[1].name}`
+      ? `            ${accountDeptCheckers[1].checked ? '☑' : '□'} ${sanitizeEnglishTextForPdf(accountDeptCheckers[1].name)}`
       : '            □ Mr. Fazley Elahi Azim';
     const chk3 = accountDeptCheckers[2]
-      ? `           ${accountDeptCheckers[2].checked ? '☑' : '□'} ${accountDeptCheckers[2].name}`
+      ? `           ${accountDeptCheckers[2].checked ? '☑' : '□'} ${sanitizeEnglishTextForPdf(accountDeptCheckers[2].name)}`
       : '           □ Mr. Shaheed Pathan';
 
     csvRows.push([
       '',
-      `Prepared  By         : ${preparedBy}`,
+      `Prepared  By         : ${sanitizeEnglishTextForPdf(preparedBy)}`,
       '',
       '',
       '',
@@ -312,10 +364,10 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
     csvRows.push(['', '', '', '', '', '', '', '']);
     csvRows.push([
       '',
-      `Verified By :       ${verifiedBy}`,
+      `Verified By :       ${sanitizeEnglishTextForPdf(verifiedBy)}`,
       '',
       '',
-      `Final Approver : ${approvedBy1}`,
+      `Final Approver : ${sanitizeEnglishTextForPdf(approvedBy1)}`,
       '',
       '',
       chk2
@@ -325,10 +377,10 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
     csvRows.push([
       '',
       'Requested  by ',
-      requestedBy,
+      sanitizeEnglishTextForPdf(requestedBy),
       '',
-      `2nd Approver : ${approvedBy2}`,
-      `3rd Approver : ${approvedBy3}`,
+      `2nd Approver : ${sanitizeEnglishTextForPdf(approvedBy2)}`,
+      `3rd Approver : ${sanitizeEnglishTextForPdf(approvedBy3)}`,
       '',
       ''
     ]);
@@ -394,7 +446,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
         <div className="flex items-center justify-between gap-2">
           <div className="font-bold text-xs sm:text-sm text-emerald-400 flex items-center gap-1.5">
             <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>গুগল শিট এক্সাক্ট অ্যাপ্রুভাল টেমপ্লেট (Landscape A4)</span>
+            <span>Google Sheet Approval Template (Landscape A4)</span>
           </div>
           <button
             onClick={onClose}
@@ -412,7 +464,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             }`}
           >
             <Edit3 className="w-3.5 h-3.5" />
-            <span>{isEditing ? 'এডিটর সম্পন্ন' : 'নাম / ডেটা এডিট করুন'}</span>
+            <span>{isEditing ? 'Done Editing' : 'Edit Details'}</span>
           </button>
 
           <button
@@ -425,7 +477,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            <span>{isGeneratingPdf ? 'PDF...' : '📥 PDF ডাউনলোড'}</span>
+            <span>{isGeneratingPdf ? 'Generating PDF...' : '📥 Download PDF'}</span>
           </button>
 
           <button
@@ -433,7 +485,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md transition-all cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>🖨️ প্রিন্ট</span>
+            <span>🖨️ Print</span>
           </button>
 
           <button
@@ -707,7 +759,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                {projectName}
+                {sanitizeEnglishTextForPdf(projectName)}
               </td>
               <td
                 style={{
@@ -744,17 +796,17 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   borderTop: '2px solid #000000',
                   borderRight: '2px solid #000000',
                   borderBottom: '1px solid #000000',
-                  padding: '6px 10px',
+                  padding: '8px 12px',
                   verticalAlign: 'middle',
                   textAlign: 'center',
                   background: '#ffffff'
                 }}
               >
-                <div className="flex flex-col items-center justify-center space-y-1">
+                <div className="flex flex-col items-center justify-center space-y-1.5 py-1">
                   <img
                     src={baseConfig.logoUrl || '/company_logo.svg'}
                     alt="WAFAQ Company Logo"
-                    className="max-h-20 w-auto object-contain mx-auto"
+                    className="max-h-24 sm:max-h-28 w-full max-w-[380px] object-contain mx-auto transition-transform duration-200 hover:scale-[1.02]"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;
@@ -773,7 +825,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                       marginTop: '4px'
                     }}
                   >
-                    {companyAddress}
+                    {sanitizeEnglishTextForPdf(companyAddress)}
                   </div>
                 </div>
               </td>
@@ -805,7 +857,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                {companyName}
+                {sanitizeEnglishTextForPdf(companyName)}
               </td>
               <td
                 style={{
@@ -860,7 +912,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                {paymentMonth}
+                {sanitizeEnglishTextForPdf(paymentMonth)}
               </td>
               <td
                 style={{
@@ -915,7 +967,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                {expansesBy}
+                {sanitizeEnglishTextForPdf(expansesBy)}
               </td>
             </tr>
 
@@ -1019,10 +1071,16 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             {/* ---------------- ROW 9 (Data Items) ---------------- */}
             {expenses.map((exp, idx) => {
               const invNum = String(idx + 1).padStart(2, '0');
+              const cat = sanitizeEnglishTextForPdf(exp.category);
+              const desc = sanitizeEnglishTextForPdf(exp.description);
+              const vat = sanitizeEnglishTextForPdf(exp.vatStatus);
+              const pay = sanitizeEnglishTextForPdf(exp.paymentMethod);
+              const proj = sanitizeEnglishTextForPdf(exp.project);
+
               const remarksText = [
-                exp.vatStatus || '',
-                exp.paymentMethod || '',
-                exp.project ? `Proj: ${exp.project}` : ''
+                vat,
+                pay,
+                proj ? `Proj: ${proj}` : ''
               ]
                 .filter(Boolean)
                 .join(' | ');
@@ -1055,8 +1113,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                       fontFamily: 'Calibri, Arial, sans-serif'
                     }}
                   >
-                    {exp.category ? `${exp.category} - ` : ''}
-                    {exp.description}
+                    {cat ? `${cat} - ` : ''}
+                    {desc}
                   </td>
                   <td
                     style={{
@@ -1196,7 +1254,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   whiteSpace: 'pre'
                 }}
               >
-                Prepared  By         : {preparedBy}
+                Prepared  By         : {sanitizeEnglishTextForPdf(preparedBy)}
               </td>
               <td colSpan={4} style={{ verticalAlign: 'middle' }}></td>
               <td
@@ -1237,7 +1295,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   paddingLeft: '32px'
                 }}
               >
-                {accountDeptCheckers[0]?.checked ? '☑' : '□'} {accountDeptCheckers[0]?.name || 'Mr. Javeed Hikady'}
+                {accountDeptCheckers[0]?.checked ? '☑' : '□'} {sanitizeEnglishTextForPdf(accountDeptCheckers[0]?.name) || 'Mr. Javeed Hikady'}
               </td>
             </tr>
 
@@ -1261,7 +1319,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   whiteSpace: 'pre'
                 }}
               >
-                Verified By :       {verifiedBy}
+                Verified By :       {sanitizeEnglishTextForPdf(verifiedBy)}
               </td>
               <td colSpan={1}></td>
               <td
@@ -1274,7 +1332,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   whiteSpace: 'pre'
                 }}
               >
-                Final Approver : {approvedBy1}
+                Final Approver : {sanitizeEnglishTextForPdf(approvedBy1)}
               </td>
               <td
                 style={{
@@ -1286,7 +1344,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   paddingLeft: '32px'
                 }}
               >
-                {accountDeptCheckers[1]?.checked ? '☑' : '□'} {accountDeptCheckers[1]?.name || 'Mr. Fazley Elahi Azim'}
+                {accountDeptCheckers[1]?.checked ? '☑' : '□'} {sanitizeEnglishTextForPdf(accountDeptCheckers[1]?.name) || 'Mr. Fazley Elahi Azim'}
               </td>
             </tr>
 
@@ -1320,7 +1378,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   paddingLeft: '32px'
                 }}
               >
-                {accountDeptCheckers[2]?.checked ? '☑' : '□'} {accountDeptCheckers[2]?.name || 'Mr. Shaheed Pathan'}
+                {accountDeptCheckers[2]?.checked ? '☑' : '□'} {sanitizeEnglishTextForPdf(accountDeptCheckers[2]?.name) || 'Mr. Shaheed Pathan'}
               </td>
             </tr>
 
@@ -1346,7 +1404,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   padding: '2px 8px'
                 }}
               >
-                {requestedBy}
+                {sanitizeEnglishTextForPdf(requestedBy)}
               </td>
               <td
                 colSpan={2}
@@ -1358,7 +1416,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   padding: '2px 8px'
                 }}
               >
-                2nd Approver : {approvedBy2}
+                2nd Approver : {sanitizeEnglishTextForPdf(approvedBy2)}
               </td>
               <td
                 style={{
@@ -1369,7 +1427,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   padding: '2px 8px'
                 }}
               >
-                3rd Approver : {approvedBy3}
+                3rd Approver : {sanitizeEnglishTextForPdf(approvedBy3)}
               </td>
               <td style={{ borderRight: '2px solid #000000' }}></td>
             </tr>
