@@ -249,7 +249,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           config: sheetsConfig,
-          expenses
+          expenses,
+          fullSync: true
         })
       });
       const data = await res.json();
@@ -346,8 +347,34 @@ export default function App() {
 
   // Handle Delete Expense (Admin)
   const handleDeleteExpense = async (expenseId: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+    const remainingExpenses = expenses.filter((e) => e.id !== expenseId);
+    setExpenses(remainingExpenses);
     const success = await deleteExpenseFromFirestore(expenseId);
+
+    // Auto-sync deletion to Google Sheets if configured so deleted item is removed from sheet
+    if (success && sheetsConfig.spreadsheetId && (sheetsConfig.serviceAccountEmail || sheetsConfig.apiKey)) {
+      try {
+        await fetch('/api/sheets/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            config: sheetsConfig,
+            expenses: remainingExpenses,
+            fullSync: true
+          })
+        });
+        await addSyncLogToFirestore({
+          timestamp: new Date().toISOString(),
+          operation: 'delete_sync',
+          expenseId: expenseId,
+          status: 'success',
+          details: `Deleted expense ${expenseId} from portal & synchronized Google Sheets`
+        });
+      } catch (err: any) {
+        console.warn('Google Sheets delete sync error:', err);
+      }
+    }
+
     return success;
   };
 

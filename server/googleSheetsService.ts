@@ -412,11 +412,13 @@ export async function getSpreadsheetData(config: BackendGoogleSheetsConfig, limi
 }
 
 /**
- * 3. Sync Expenses (Batch Append & Update with Duplicate Prevention)
+ * 3. Sync Expenses (Mirroring Sync & Incremental Sync)
+ * Ensures Google Sheet strictly reflects active portal data, removing any deleted entries.
  */
 export async function syncExpensesToSheet(
   config: BackendGoogleSheetsConfig,
-  expenses: ExpenseRowPayload[]
+  expenses: ExpenseRowPayload[],
+  options?: { fullSync?: boolean }
 ) {
   const spreadsheetId = (config.spreadsheetId || '').trim();
   const sheetName = (config.sheetName || 'Expenses').trim();
@@ -424,9 +426,9 @@ export async function syncExpensesToSheet(
   if (!spreadsheetId) {
     return { success: false, error: 'Spreadsheet ID is required for sync.' };
   }
-  if (!expenses || expenses.length === 0) {
-    return { success: true, syncedCount: 0, message: 'No expenses provided to sync.' };
-  }
+
+  const safeExpenses = Array.isArray(expenses) ? expenses : [];
+  const isFullSync = options?.fullSync === true || safeExpenses.length > 1;
 
   try {
     const auth = getGoogleAuthClient(config);
@@ -437,17 +439,80 @@ export async function syncExpensesToSheet(
     const sheetTabs = metaRes.data.sheets?.map(s => s.properties?.title || '') || [];
     const targetSheet = sheetTabs.includes(sheetName) ? sheetName : (sheetTabs[0] || 'Sheet1');
 
-    // Step B: Read existing data to identify existing Expense IDs
+    // Step B: Read existing data to know row count & bounds
     const readRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${targetSheet}!A:P`
     });
 
     const allValues = readRes.data.values || [];
-    let hasHeader = false;
+    const previousTotalRows = allValues.length;
 
+    if (isFullSync) {
+      // Full Mirroring Sync: Replace sheet with current active portal expenses only.
+      // Any deleted entries in portal will be removed from Google Sheet.
+      const formattedExpenseRows = safeExpenses.map((exp) => [
+        cleanCellForSheet(exp.id || ''),
+        cleanCellForSheet(exp.date || ''),
+        cleanCellForSheet(exp.userName || ''),
+        typeof exp.amount === 'number' ? exp.amount : Number(exp.amount) || 0,
+        cleanCellForSheet(exp.category || ''),
+        cleanCellForSheet(exp.description || ''),
+        typeof exp.totalAmount === 'number' ? exp.totalAmount : (typeof exp.amount === 'number' ? exp.amount : Number(exp.amount) || 0),
+        cleanCellForSheet(exp.vatStatus || 'Without VAT (উইদাউট ভ্যাট)'),
+        cleanCellForSheet(exp.paymentMethod || 'Cash (ক্যাশ)'),
+        cleanCellForSheet(exp.project || 'General Project'),
+        cleanCellForSheet(exp.approvedBy || ''),
+        cleanCellForSheet(exp.receiptUrl || ''),
+        cleanCellForSheet(exp.status || 'pending'),
+        cleanCellForSheet(exp.submittedVia || 'web_chat'),
+        cleanCellForSheet(exp.createdAt || new Date().toISOString()),
+        cleanCellForSheet(exp.updatedAt || new Date().toISOString())
+      ]);
+
+      const newFullMatrix = [SHEET_HEADERS, ...formattedExpenseRows];
+
+      // Overwrite from A1 down
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${targetSheet}!A1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: newFullMatrix }
+      });
+
+      // Clear trailing rows if previous sheet had more rows than current portal count
+      const newTotalRows = newFullMatrix.length;
+      if (previousTotalRows > newTotalRows) {
+        const startClearRow = newTotalRows + 1;
+        const endClearRow = Math.max(previousTotalRows + 20, startClearRow + 10);
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          range: `${targetSheet}!A${startClearRow}:P${endClearRow}`
+        });
+      }
+
+      return {
+        success: true,
+        spreadsheetId,
+        activeSheet: targetSheet,
+        totalProcessed: safeExpenses.length,
+        rowsAdded: safeExpenses.length,
+        rowsUpdated: 0,
+        appendedCount: safeExpenses.length,
+        updatedCount: 0,
+        syncedCount: safeExpenses.length,
+        timestamp: new Date().toISOString(),
+        message: `Google Sheets Synchronized: Portal list mirrored (${safeExpenses.length} entries). Any deleted entries removed from sheet.`
+      };
+    }
+
+    // Incremental Sync (for single item submission/update when fullSync is false)
+    if (safeExpenses.length === 0) {
+      return { success: true, syncedCount: 0, message: 'No expenses provided for incremental sync.' };
+    }
+
+    let hasHeader = false;
     if (allValues.length === 0) {
-      // Initialize header row
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${targetSheet}!A1:P1`,
@@ -459,10 +524,9 @@ export async function syncExpensesToSheet(
       hasHeader = true;
     }
 
-    // Map existing Expense IDs to their row indices (1-indexed in Google Sheets)
     const existingIdToRowIndex = new Map<string, number>();
     for (let i = 1; i < allValues.length; i++) {
-      const rowId = allValues[i][0]; // Column A is Expense ID
+      const rowId = allValues[i][0];
       if (rowId) {
         existingIdToRowIndex.set(String(rowId).trim(), i + 1);
       }
@@ -472,7 +536,7 @@ export async function syncExpensesToSheet(
     let rowsUpdated = 0;
     const newRowsToAppend: any[][] = [];
 
-    for (const exp of expenses) {
+    for (const exp of safeExpenses) {
       const rowData = [
         cleanCellForSheet(exp.id || ''),
         cleanCellForSheet(exp.date || ''),
@@ -495,7 +559,6 @@ export async function syncExpensesToSheet(
       const existingRowIndex = existingIdToRowIndex.get(String(exp.id).trim());
 
       if (existingRowIndex) {
-        // Update existing row to keep status / approver in sync
         await sheets.spreadsheets.values.update({
           spreadsheetId,
           range: `${targetSheet}!A${existingRowIndex}:P${existingRowIndex}`,
@@ -508,7 +571,6 @@ export async function syncExpensesToSheet(
       }
     }
 
-    // Batch append any new rows
     if (newRowsToAppend.length > 0) {
       await sheets.spreadsheets.values.append({
         spreadsheetId,
@@ -526,7 +588,7 @@ export async function syncExpensesToSheet(
       success: true,
       spreadsheetId,
       activeSheet: targetSheet,
-      totalProcessed: expenses.length,
+      totalProcessed: safeExpenses.length,
       rowsAdded,
       rowsUpdated,
       appendedCount: rowsAdded,

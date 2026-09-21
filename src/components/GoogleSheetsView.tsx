@@ -428,6 +428,7 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({
         body: JSON.stringify({
           config: configToUse,
           expenses,
+          fullSync: true,
           privateKey: isEditingKey && serviceAccountPrivateKey ? serviceAccountPrivateKey.trim() : undefined
         })
       });

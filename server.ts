@@ -802,7 +802,7 @@ app.post(['/api/sheets/test', '/api/sheets/test-connection'], async (req, res) =
 // 3. Direct Google Sheets API v4 Sync (Append & Update)
 app.post('/api/sheets/sync', async (req, res) => {
   try {
-    const { config, expenses } = req.body;
+    const { config, expenses, fullSync } = req.body;
     const backendConfig = resolveBackendConfig(config);
     const key = extractPrivateKey(backendConfig);
 
@@ -820,7 +820,7 @@ app.post('/api/sheets/sync', async (req, res) => {
       });
     }
 
-    const syncResult = await syncExpensesToSheet(backendConfig, expenses || []);
+    const syncResult = await syncExpensesToSheet(backendConfig, expenses || [], { fullSync });
     res.json(syncResult);
   } catch (err: any) {
     const formattedError = formatGoogleError(err, resolveBackendConfig(req.body?.config));
