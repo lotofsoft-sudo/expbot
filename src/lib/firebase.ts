@@ -185,6 +185,24 @@ export async function seedInitialDataIfNeeded() {
       for (const q of DEFAULT_BOT_QUESTIONS) {
         await setDoc(doc(db, 'bot_questions', q.id), q);
       }
+    } else {
+      // Remove deprecated questions (approvedBy, receiptUrl) from Firestore
+      for (const docSnap of qSnap.docs) {
+        const data = docSnap.data();
+        if (data.key === 'approvedBy' || data.key === 'receiptUrl' || docSnap.id === 'q8' || docSnap.id === 'q9') {
+          console.log(`Removing deprecated question (${docSnap.id} / ${data.key}) from Firestore...`);
+          await deleteDoc(doc(db, 'bot_questions', docSnap.id));
+        }
+      }
+
+      // Upsert missing default questions into Firestore
+      const existingKeys = new Set(qSnap.docs.map((d) => d.data().key || d.id));
+      for (const q of DEFAULT_BOT_QUESTIONS) {
+        if (!existingKeys.has(q.key) && !existingKeys.has(q.id)) {
+          console.log(`Seeding missing question (${q.key}) to Firestore...`);
+          await setDoc(doc(db, 'bot_questions', q.id), q);
+        }
+      }
     }
 
     const settingsDoc = await getDoc(doc(db, 'app_settings', 'global'));
@@ -567,10 +585,42 @@ export function subscribeBotQuestions(callback: (questions: BotQuestion[]) => vo
   try {
     const q = query(collection(db, 'bot_questions'), orderBy('order', 'asc'));
     return onSnapshot(q, (snapshot) => {
-      const items: BotQuestion[] = [];
+      let items: BotQuestion[] = [];
       snapshot.forEach((docSnap) => {
         items.push(docSnap.data() as BotQuestion);
       });
+
+      // Filter out deprecated questions (approvedBy, receiptUrl)
+      const removed = items.filter(
+        (i) => i.key === 'approvedBy' || i.key === 'receiptUrl' || i.id === 'q8' || i.id === 'q9'
+      );
+      if (removed.length > 0) {
+        items = items.filter(
+          (i) => i.key !== 'approvedBy' && i.key !== 'receiptUrl' && i.id !== 'q8' && i.id !== 'q9'
+        );
+        for (const r of removed) {
+          deleteDoc(doc(db, 'bot_questions', r.id)).catch(() => {});
+        }
+      }
+
+      // Ensure default questions (including supplierDetail and workingMonth) are merged if missing from existing database
+      const existingKeys = new Set(items.map((i) => i.key));
+      let missingAdded = false;
+      for (const defaultQ of DEFAULT_BOT_QUESTIONS) {
+        if (!existingKeys.has(defaultQ.key)) {
+          items.push(defaultQ);
+          missingAdded = true;
+          // Auto-persist missing question to Firestore
+          setDoc(doc(db, 'bot_questions', defaultQ.id), defaultQ).catch((err) => {
+            console.warn('Auto-persist missing default question error:', err);
+          });
+        }
+      }
+
+      items = items
+        .sort((a, b) => a.order - b.order)
+        .map((item, idx) => ({ ...item, order: idx + 1 }));
+
       callback(items);
       localStorage.setItem(LOCAL_STORAGE_QUESTIONS_KEY, JSON.stringify(items));
     }, (error) => {

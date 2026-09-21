@@ -54,13 +54,13 @@ export const DEFAULT_BOT_QUESTIONS: BotQuestion[] = [
     questionText: '2. Why was this expense incurred or why do you want to incur it?',
     type: 'select',
     options: [
-      'Travel & Transport',
-      'Client Dining & Meals',
-      'Office Supplies & Stationery',
-      'Software & Cloud Services',
-      'Hotel & Accommodation',
-      'Fuel & Vehicle Maintenance',
-      'Miscellaneous Business'
+      'Travel & Transport / যাতায়াত / سفر ومواصلات',
+      'Client Dining & Meals / খাবার ও আপ্যায়ন / طعام وضيافة',
+      'Office Supplies & Stationery / অফিস সামগ্রী / أدوات مكتبية',
+      'Software & Cloud Services / সফটওয়্যার ও ক্লাউড / برمجيات وسحابية',
+      'Hotel & Accommodation / হোটেল ও আবাসন / فندق وإقامة',
+      'Fuel & Vehicle Maintenance / জ্বালানি ও গাড়ি মেরামত / وقود وصيانة',
+      'Miscellaneous Business / অন্যান্য ব্যবসায়িক খরচ / نثريات أعمال'
     ],
     required: true,
     helpText: 'Select purpose or category'
@@ -124,30 +124,57 @@ export const DEFAULT_BOT_QUESTIONS: BotQuestion[] = [
     helpText: 'Enter related project name'
   },
   {
-    id: 'q8',
+    id: 'q7_supplier',
     order: 7,
-    key: 'approvedBy',
-    questionBn: 'Who approved this expense?',
-    questionEn: 'Who approved this expense?',
-    questionAr: 'Who approved this expense?',
-    questionText: '7. Who approved this expense?',
+    key: 'supplierDetail',
+    questionBn: 'Enter additional Supplier detail.',
+    questionEn: 'Enter additional Supplier detail.',
+    questionAr: 'Enter additional Supplier detail.',
+    questionText: '7. Enter additional Supplier detail.',
     type: 'text',
-    required: true,
-    placeholder: 'e.g. Faisal Al-Otaibi / Project Manager / Department Head...',
-    helpText: 'Name or role of approving manager'
+    required: false,
+    placeholder: 'e.g. Jarir Bookstore / Al Othaim / Vendor Tax ID & Name...',
+    helpText: 'Enter vendor or supplier details (optional)'
   },
   {
-    id: 'q9',
+    id: 'q_working_month',
     order: 8,
-    key: 'receiptUrl',
-    questionBn: 'Please upload a photo of your invoice or receipt.',
-    questionEn: 'Please upload a photo of your invoice or receipt.',
-    questionAr: 'Please upload a photo of your invoice or receipt.',
-    questionText: '8. Please upload a photo of your invoice or receipt.',
-    type: 'receipt',
-    required: false,
-    placeholder: 'Attach receipt image or invoice file',
-    helpText: 'Upload image file or take photo'
+    key: 'workingMonth',
+    questionBn: 'Working / Invoice Month:',
+    questionEn: 'Working / Invoice Month:',
+    questionAr: 'Working / Invoice Month:',
+    questionText: '8. Working / Invoice Month:',
+    type: 'select',
+    options: [
+      'January 2026',
+      'February 2026',
+      'March 2026',
+      'April 2026',
+      'May 2026',
+      'June 2026',
+      'July 2026',
+      'August 2026',
+      'September 2026',
+      'October 2026',
+      'November 2026',
+      'December 2026'
+    ],
+    required: true,
+    placeholder: 'Select working / invoice month (e.g. September 2026)',
+    helpText: 'Select working or invoice month'
+  },
+  {
+    id: 'q_requested_by',
+    order: 9,
+    key: 'requestedBy',
+    questionBn: 'Expenses Requested by:',
+    questionEn: 'Expenses Requested by:',
+    questionAr: 'Expenses Requested by:',
+    questionText: '9. Expenses Requested by:',
+    type: 'text',
+    required: true,
+    placeholder: 'e.g. Admin User / Mr Abdul Gaffar / Project Manager...',
+    helpText: 'Enter name of requesting person'
   }
 ];
 

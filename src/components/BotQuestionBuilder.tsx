@@ -16,8 +16,225 @@ import {
   Sparkles,
   Layers,
   FileCheck,
-  Check
+  Check,
+  Edit3
 } from 'lucide-react';
+
+interface CategoryOptionsEditorProps {
+  options: string[];
+  onChangeOptions: (newOptions: string[]) => void;
+  questionKey?: string;
+}
+
+const CategoryOptionsEditor: React.FC<CategoryOptionsEditorProps> = ({
+  options = [],
+  onChangeOptions,
+  questionKey
+}) => {
+  const [newOptionInput, setNewOptionInput] = useState<string>('');
+  const [showBulkInput, setShowBulkInput] = useState<boolean>(false);
+
+  const handleAddOption = (textToAdd?: string) => {
+    const val = (textToAdd || newOptionInput).trim();
+    if (!val) return;
+    if (options.includes(val)) return;
+    onChangeOptions([...options, val]);
+    if (!textToAdd) setNewOptionInput('');
+  };
+
+  const handleEditOption = (index: number, val: string) => {
+    const updated = [...options];
+    updated[index] = val;
+    onChangeOptions(updated);
+  };
+
+  const handleDeleteOption = (index: number) => {
+    const updated = options.filter((_, i) => i !== index);
+    onChangeOptions(updated);
+  };
+
+  const handleMoveOption = (index: number, dir: 'up' | 'down') => {
+    if ((dir === 'up' && index === 0) || (dir === 'down' && index === options.length - 1)) return;
+    const targetIdx = dir === 'up' ? index - 1 : index + 1;
+    const updated = [...options];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    onChangeOptions(updated);
+  };
+
+  const presetCategories = [
+    'Equipment Rental / ইকুইপমেন্ট ভাড়া',
+    'Marketing & Advertising / মার্কেটিং ও বিজ্ঞাপন',
+    'Office Rent & Utilities / অফিস ভাড়া ও তথ্যপ্রযুক্তি',
+    'Government & License Fees / সরকারি ও লাইসেন্স ফি',
+    'Consultancy & Professional Fees / আইনি ও পেশাদার ফি',
+    'Maintenance & Repairs / মেরামত ও মেকানিক্যাল'
+  ];
+
+  return (
+    <div className="sm:col-span-2 space-y-3 bg-white p-4 sm:p-5 rounded-2xl border border-emerald-300 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-3">
+        <div>
+          <h4 className="font-bold text-sm sm:text-base text-emerald-950 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-emerald-700" />
+            <span>{questionKey === 'category' ? 'Category Options Manager (ক্যাটাগরি কাস্টমাইজেশন)' : 'Quick Selection Options'}</span>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              {options.length} {questionKey === 'category' ? 'Categories' : 'Options'}
+            </span>
+          </h4>
+          <p className="text-xs text-emerald-700 mt-0.5">
+            বট ফ্লো-তে কর্মচারীর সামনে এই ক্যাটাগরিগুলো কুইক বাটন হিসেবে দেখাবে। নতুন যোগ, এডিট বা রিমুভ করুন।
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowBulkInput(!showBulkInput)}
+          className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer self-start sm:self-auto"
+        >
+          {showBulkInput ? '← Visual Category List' : '⚡ Comma-separated Text Mode'}
+        </button>
+      </div>
+
+      {/* Bulk Comma Separated Mode */}
+      {showBulkInput ? (
+        <div className="space-y-1.5 pt-1">
+          <label className="block text-xs font-bold text-emerald-900">
+            Comma Separated Values (কমা দিয়ে লেখা তালিকা):
+          </label>
+          <textarea
+            rows={3}
+            value={options.join(', ')}
+            onChange={(e) =>
+              onChangeOptions(
+                e.target.value
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              )
+            }
+            placeholder="Category 1, Category 2, Category 3..."
+            className="w-full p-2.5 rounded-xl border border-emerald-200 text-xs sm:text-sm font-mono text-emerald-950 focus:ring-2 focus:ring-emerald-300 focus:outline-hidden"
+          />
+        </div>
+      ) : (
+        /* Visual Category Manager List */
+        <div className="space-y-2.5 pt-1">
+          {options.length === 0 ? (
+            <div className="p-4 text-center text-xs sm:text-sm text-slate-500 bg-emerald-50/50 rounded-xl border border-dashed border-emerald-200">
+              No categories configured yet. Type a category name below to add one!
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {options.map((opt, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 hover:border-emerald-300 transition-all shadow-2xs"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-emerald-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </span>
+
+                  <input
+                    type="text"
+                    value={opt}
+                    onChange={(e) => handleEditOption(idx, e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-emerald-200 font-bold text-xs sm:text-sm text-emerald-950 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveOption(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-1.5 rounded-lg bg-white hover:bg-emerald-100 text-emerald-800 disabled:opacity-30 border border-emerald-200 cursor-pointer"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveOption(idx, 'down')}
+                      disabled={idx === options.length - 1}
+                      className="p-1.5 rounded-lg bg-white hover:bg-emerald-100 text-emerald-800 disabled:opacity-30 border border-emerald-200 cursor-pointer"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOption(idx)}
+                      className="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 cursor-pointer ml-1"
+                      title="Delete / Remove Category"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add New Category Input */}
+          <div className="pt-3 border-t border-emerald-100 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newOptionInput}
+                onChange={(e) => setNewOptionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddOption();
+                  }
+                }}
+                placeholder="Type new category name (e.g. Equipment Rental / ইকুইপমেন্ট ভাড়া)..."
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-emerald-300 font-semibold text-xs sm:text-sm text-emerald-950 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddOption()}
+                className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Category</span>
+              </button>
+            </div>
+
+            {/* Quick Presets for Category */}
+            {questionKey === 'category' && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-xs font-bold text-emerald-900">Quick Add Common Business Categories:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {presetCategories.map((preset, i) => {
+                    const isAdded = options.includes(preset);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => !isAdded && handleAddOption(preset)}
+                        disabled={isAdded}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all cursor-pointer ${
+                          isAdded
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-200 opacity-60 cursor-default'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200 hover:border-emerald-300'
+                        }`}
+                      >
+                        {isAdded ? `✓ ${preset.split(' / ')[0]}` : `+ ${preset}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface BotQuestionBuilderProps {
   questions: BotQuestion[];
@@ -38,6 +255,13 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [selectedLangMode, setSelectedLangMode] = useState<LanguageMode>(appLanguage || 'en');
+
+  // Sync state if questions prop changes externally (e.g. Firestore sync)
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      setQuestionList(questions);
+    }
+  }, [questions]);
 
   // Format question text based on active language mode
   const getDisplayQuestionText = (q: BotQuestion, mode: LanguageMode): string => {
@@ -104,19 +328,19 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
   };
 
   const handleUpdateQuestion = (id: string, updates: Partial<BotQuestion>) => {
-    setQuestionList((prev) =>
-      prev.map((q) => {
-        if (q.id === id) {
-          const merged = { ...q, ...updates };
-          // If individual language text updated, keep questionText synced with active format
-          if (updates.questionBn || updates.questionEn || updates.questionAr) {
-            merged.questionText = getDisplayQuestionText(merged, selectedLangMode);
-          }
-          return merged;
+    const updated = questionList.map((q) => {
+      if (q.id === id) {
+        const merged = { ...q, ...updates };
+        // If individual language text updated, keep questionText synced with active format
+        if (updates.questionBn || updates.questionEn || updates.questionAr) {
+          merged.questionText = getDisplayQuestionText(merged, selectedLangMode);
         }
-        return q;
-      })
-    );
+        return merged;
+      }
+      return q;
+    });
+    setQuestionList(updated);
+    onSaveQuestions(updated);
   };
 
   const handleDeleteQuestion = (id: string) => {
@@ -128,6 +352,7 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
         questionText: getDisplayQuestionText({ ...q, order: idx + 1 }, selectedLangMode)
       }));
     setQuestionList(updated);
+    onSaveQuestions(updated);
   };
 
   const handleMove = (index: number, direction: 'up' | 'down') => {
@@ -150,6 +375,7 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
       questionText: getDisplayQuestionText({ ...q, order: idx + 1 }, selectedLangMode)
     }));
     setQuestionList(updated);
+    onSaveQuestions(updated);
   };
 
   const handleSave = () => {
@@ -184,9 +410,28 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
+            onClick={() => {
+              const catQ = questionList.find((q) => q.key === 'category') || questionList[1];
+              if (catQ) {
+                setEditingId(catQ.id);
+                setTimeout(() => {
+                  const el = document.getElementById(`q_card_${catQ.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+              }
+            }}
+            className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-emerald-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all border border-amber-500 cursor-pointer shadow-xs"
+            title="Edit expense category options"
+          >
+            <Layers className="w-4 h-4 text-emerald-950" />
+            <span>🏷️ Edit Categories (ক্যাটাগরি সমূহ)</span>
+          </button>
+
+          <button
             onClick={handleResetToStrictDefaults}
             className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors border border-emerald-200 cursor-pointer shadow-xs"
-            title="Reset to 9 standard required questions"
+            title="Reset to standard default questions"
           >
             <RotateCcw className="w-4 h-4" />
             <span>Reset 8 Questions (ডিফল্ট প্রশ্ন)</span>
@@ -261,6 +506,7 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
           return (
             <div
               key={q.id}
+              id={`q_card_${q.id}`}
               className="bg-white rounded-2xl border border-emerald-200/90 p-4 sm:p-5 shadow-xs transition-all space-y-3"
             >
               <div className="flex items-start justify-between gap-3">
@@ -457,25 +703,14 @@ export const BotQuestionBuilder: React.FC<BotQuestionBuilderProps> = ({
                     />
                   </div>
 
-                  {/* Options if select */}
-                  <div className="sm:col-span-2">
-                    <label className="block font-bold text-emerald-900 mb-1">
-                      Quick Selection Options (comma-separated if select type)
-                    </label>
-                    <input
-                      type="text"
-                      value={q.options ? q.options.join(', ') : ''}
-                      onChange={(e) =>
-                        handleUpdateQuestion(q.id, {
-                          options: e.target.value
-                            ? e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
-                            : undefined
-                        })
-                      }
-                      placeholder="Option 1, Option 2, Option 3..."
-                      className="w-full p-2.5 rounded-xl bg-white border border-emerald-200 text-emerald-950 font-medium outline-hidden"
+                  {/* Options if select or category question */}
+                  {(q.type === 'select' || q.key === 'category' || (q.options && q.options.length > 0)) && (
+                    <CategoryOptionsEditor
+                      options={q.options || []}
+                      onChangeOptions={(newOpts) => handleUpdateQuestion(q.id, { options: newOpts })}
+                      questionKey={q.key}
                     />
-                  </div>
+                  )}
 
                   <div className="sm:col-span-2 flex items-center justify-between pt-2">
                     <label className="flex items-center gap-2 cursor-pointer font-bold text-emerald-900">

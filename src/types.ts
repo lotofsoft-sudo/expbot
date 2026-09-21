@@ -41,8 +41,11 @@ export interface Expense {
   vatStatus?: string; // Q5: "With VAT" | "Without VAT"
   paymentMethod?: string; // Q6: "Cash" | "Bank Transfer"
   project?: string; // Q7: Project related
-  approvedBy?: string; // Q8: Approver name / role
-  receiptUrl?: string; // Q9: Invoice / receipt photo
+  supplierDetail?: string; // Q8: Additional supplier detail / Vendor info
+  workingMonth?: string; // Q: Working / Invoice Month (e.g. September 2026)
+  requestedBy?: string; // Q: Expenses Requested by (person requesting the expense)
+  approvedBy?: string; // Q9: Approver name / role
+  receiptUrl?: string; // Q10: Invoice / receipt photo
   receiptName?: string;
   date: string; // YYYY-MM-DD
   taxAmount?: number;

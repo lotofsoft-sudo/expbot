@@ -522,6 +522,7 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({
       'Amount',
       'Currency',
       'Category',
+      'Supplier Detail',
       'Description',
       'Status'
     ];
@@ -535,6 +536,7 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({
       e.amount,
       e.currency,
       `"${e.category}"`,
+      `"${(e.supplierDetail || '').replace(/"/g, '""')}"`,
       `"${(e.description || '').replace(/"/g, '""')}"`,
       e.status
     ]);

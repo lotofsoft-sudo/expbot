@@ -75,6 +75,18 @@ export const WebChat: React.FC<WebChatProps> = ({
   const [sessionExpenses, setSessionExpenses] = useState<Expense[]>([]);
   const [isAwaitingAnotherExpenseChoice, setIsAwaitingAnotherExpenseChoice] = useState<boolean>(false);
   const [pendingCurrentExpense, setPendingCurrentExpense] = useState<Expense | null>(null);
+  const [selectedMonthsMap, setSelectedMonthsMap] = useState<Record<string, string[]>>({});
+
+  const toggleMonthInMap = (msgId: string, month: string) => {
+    setSelectedMonthsMap((prev) => {
+      const currentList = prev[msgId] || [];
+      if (currentList.includes(month)) {
+        return { ...prev, [msgId]: currentList.filter((m) => m !== month) };
+      } else {
+        return { ...prev, [msgId]: [...currentList, month] };
+      }
+    });
+  };
 
   // PDF Voucher Preview Modal
   const [pdfModalOpen, setPdfModalOpen] = useState<boolean>(false);
@@ -111,10 +123,28 @@ export const WebChat: React.FC<WebChatProps> = ({
     return `Welcome ${currentUser.displayName}! 👋 Welcome to Smart Expense Bot (Saudi Arabia • SAR).\n\nYou can submit a single expense or multiple expenses in one session. Please answer the 8 standard questions below.`;
   };
 
-  // Initialize chat flow when component mounts or bot questions change
+  // Initialize chat flow when component mounts or sync options when bot questions change
   useEffect(() => {
-    if (botQuestions.length > 0 && messages.length === 0) {
-      startNewExpenseFlow(langMode);
+    if (botQuestions.length > 0) {
+      if (messages.length === 0) {
+        startNewExpenseFlow(langMode);
+      } else {
+        // Automatically update options for active question messages when categories/options are modified in Bot Flow
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.fieldKey) {
+              const matchedQ = botQuestions.find((q) => q.key === msg.fieldKey);
+              if (matchedQ && matchedQ.options && matchedQ.options.length > 0 && matchedQ.type === 'select') {
+                return {
+                  ...msg,
+                  options: matchedQ.options
+                };
+              }
+            }
+            return msg;
+          })
+        );
+      }
     }
   }, [botQuestions]);
 
@@ -272,6 +302,14 @@ export const WebChat: React.FC<WebChatProps> = ({
     else if (currentQ.key === 'project') {
       updatedAnswers.project = text;
     }
+    // Q7 Supplier: Supplier detail
+    else if (currentQ.key === 'supplierDetail') {
+      updatedAnswers.supplierDetail = text;
+    }
+    // Working / Invoice Month
+    else if (currentQ.key === 'workingMonth') {
+      updatedAnswers.workingMonth = text;
+    }
     // Q8: Approver Name
     else if (currentQ.key === 'approvedBy') {
       updatedAnswers.approvedBy = text;
@@ -405,6 +443,9 @@ export const WebChat: React.FC<WebChatProps> = ({
       vatStatus: expenseData.vatStatus || 'Without VAT',
       paymentMethod: expenseData.paymentMethod || 'Cash',
       project: expenseData.project || 'General Project',
+      supplierDetail: expenseData.supplierDetail || '',
+      workingMonth: expenseData.workingMonth || '',
+      requestedBy: expenseData.requestedBy || currentUser.displayName,
       approvedBy: expenseData.approvedBy || currentUser.displayName,
       date: expenseData.date || new Date().toISOString().split('T')[0],
       status: 'pending',
@@ -432,7 +473,7 @@ export const WebChat: React.FC<WebChatProps> = ({
         {
           id: `msg_item_recorded_${Date.now()}`,
           sender: 'bot',
-          text: `✅ Expense #${itemNumber} (${newExpense.id}) saved to Firebase Database!\n\n💰 Amount: ${newExpense.amount.toFixed(2)} SAR\n📁 Purpose: ${newExpense.category}\n📝 Details: ${newExpense.description}\n🏢 Project: ${newExpense.project}\n💳 Payment: ${newExpense.paymentMethod}\n👤 Approver: ${newExpense.approvedBy}\n🧾 Receipt: ${newExpense.receiptUrl ? 'Attached' : 'None'}\n\nDo you have another expense to add in this session?`,
+          text: `✅ Expense #${itemNumber} (${newExpense.id}) saved to Firebase Database!\n\n💰 Amount: ${newExpense.amount.toFixed(2)} SAR\n📁 Purpose: ${newExpense.category}\n📝 Details: ${newExpense.description}\n🏢 Project: ${newExpense.project}${newExpense.supplierDetail ? `\n🏪 Supplier: ${newExpense.supplierDetail}` : ''}\n💳 Payment: ${newExpense.paymentMethod}\n👤 Approver: ${newExpense.approvedBy}\n🧾 Receipt: ${newExpense.receiptUrl ? 'Attached' : 'None'}\n\nDo you have another expense to add in this session?`,
           submittedExpense: newExpense,
           options: [
             '➕ Yes, Add Another Expense',
@@ -712,23 +753,60 @@ export const WebChat: React.FC<WebChatProps> = ({
 
                     {/* Quick Choice Option Pills */}
                     {msg.options && msg.options.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2.5">
-                        {msg.options.map((opt) => (
-                          <button
-                            key={opt}
-                            onClick={() => handleQuickOptionClick(opt, msg)}
-                            className={`px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 ${
-                              opt.includes('Yes') || opt.includes('Add Another')
-                                ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 font-bold'
-                                : opt.includes('Finalize') || opt.includes('Save All')
-                                ? 'bg-amber-400 hover:bg-amber-300 text-emerald-950 border-amber-500 font-bold'
-                                : 'bg-emerald-100 hover:bg-emerald-700 hover:text-white text-emerald-900 border-emerald-300/80'
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
+                      msg.fieldKey === 'workingMonth' ? (
+                        <div className="flex flex-col gap-2 mt-2.5">
+                          <div className="flex flex-wrap gap-2">
+                            {msg.options.map((opt) => {
+                              const isSelected = (selectedMonthsMap[msg.id] || []).includes(opt);
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => toggleMonthInMap(msg.id, opt)}
+                                  className={`px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                    isSelected
+                                      ? 'bg-emerald-700 text-white border-emerald-800 font-bold'
+                                      : 'bg-emerald-100 hover:bg-emerald-700 hover:text-white text-emerald-900 border-emerald-300/80'
+                                  }`}
+                                >
+                                  {isSelected ? `✓ ${opt}` : opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {(selectedMonthsMap[msg.id] || []).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const combined = (selectedMonthsMap[msg.id] || []).join(', ');
+                                handleSendMessage(combined);
+                                setSelectedMonthsMap((prev) => ({ ...prev, [msg.id]: [] }));
+                              }}
+                              className="self-start px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                            >
+                              <span>Confirm Selected Month(s): {(selectedMonthsMap[msg.id] || []).join(', ')} ✅</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 mt-2.5">
+                          {msg.options.map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => handleQuickOptionClick(opt, msg)}
+                              className={`px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                opt.includes('Yes') || opt.includes('Add Another')
+                                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 font-bold'
+                                  : opt.includes('Finalize') || opt.includes('Save All')
+                                  ? 'bg-amber-400 hover:bg-amber-300 text-emerald-950 border-amber-500 font-bold'
+                                  : 'bg-emerald-100 hover:bg-emerald-700 hover:text-white text-emerald-900 border-emerald-300/80'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )
                     )}
                   </div>
                 </div>

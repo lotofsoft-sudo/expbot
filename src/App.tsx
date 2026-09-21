@@ -288,6 +288,7 @@ export default function App() {
 
   // Handle Bot Questions Save
   const handleSaveQuestions = async (updatedQuestions: BotQuestion[]) => {
+    setBotQuestions(updatedQuestions);
     await saveBotQuestionsToFirestore(updatedQuestions);
   };
 

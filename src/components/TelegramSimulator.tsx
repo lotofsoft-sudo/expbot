@@ -77,10 +77,12 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
   // Multi-item batch session
   const [sessionExpenses, setSessionExpenses] = useState<Expense[]>([]);
   const [awaitingMoreChoice, setAwaitingMoreChoice] = useState<boolean>(false);
+  const [selectedMonthsTG, setSelectedMonthsTG] = useState<string[]>([]);
 
   const getQuestionText = (q: BotQuestion, itemNum: number, qNum: number) => {
     if (!q) return '';
-    return `<b>Expense #${itemNum} (Question ${qNum}/8):</b>\n${q.questionEn || q.questionText}`;
+    const totalCount = sortedQuestions.length || 10;
+    return `<b>Expense #${itemNum} (Question ${qNum}/${totalCount}):</b>\n${q.questionEn || q.questionText}`;
   };
 
   // Messages in Telegram feed
@@ -88,7 +90,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
     {
       id: 'tg_welcome',
       sender: 'bot',
-      text: `🤖 <b>Wafaq Company Telegram Bot (Saudi Arabia)</b>\nWelcome ${currentUser.displayName}! Submit single or multiple expenses by answering 8 standard questions.\n\n📌 <b>Commands:</b>\n• <code>/new</code> or <code>/start</code> - Start new expense submission\n• <code>/pdf</code> - Download approved PDF vouchers\n• <code>/status</code> - System status`,
+      text: `🤖 <b>Wafaq Company Telegram Bot (Saudi Arabia)</b>\nWelcome ${currentUser.displayName}! Submit single or multiple expenses by answering all standard questions step by step.\n\n📌 <b>Commands:</b>\n• <code>/new</code> or <code>/start</code> - Start new expense submission\n• <code>/pdf</code> - Download approved PDF vouchers\n• <code>/status</code> - System status`,
       time: '10:00'
     },
     {
@@ -212,6 +214,12 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
       updatedDraft.paymentMethod = answer;
     } else if (currentQ.key === 'project') {
       updatedDraft.project = answer;
+    } else if (currentQ.key === 'supplierDetail') {
+      updatedDraft.supplierDetail = answer;
+    } else if (currentQ.key === 'workingMonth') {
+      updatedDraft.workingMonth = answer;
+    } else if (currentQ.key === 'requestedBy') {
+      updatedDraft.requestedBy = answer;
     } else if (currentQ.key === 'approvedBy') {
       updatedDraft.approvedBy = answer;
     } else if (currentQ.key === 'receiptUrl') {
@@ -270,6 +278,9 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           vatStatus: updatedDraft.vatStatus || 'Without VAT (উইদাউট ভ্যাট)',
           paymentMethod: updatedDraft.paymentMethod || 'Cash (ক্যাশ)',
           project: updatedDraft.project || 'General Project',
+          supplierDetail: updatedDraft.supplierDetail || '',
+          workingMonth: updatedDraft.workingMonth || '',
+          requestedBy: updatedDraft.requestedBy || currentUser.displayName || 'Admin User',
           approvedBy: updatedDraft.approvedBy || 'Finance Manager',
           receiptUrl: updatedDraft.receiptUrl || '',
           receiptName: updatedDraft.receiptName || '',
@@ -300,6 +311,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
           `🧾 <b>VAT Status:</b> ${finalExpense.vatStatus}\n` +
           `💳 <b>Payment Method:</b> ${finalExpense.paymentMethod}\n` +
           `🏢 <b>Project:</b> ${finalExpense.project}\n` +
+          (finalExpense.supplierDetail ? `🏪 <b>Supplier Detail:</b> ${finalExpense.supplierDetail}\n` : '') +
           `👤 <b>Approved By:</b> ${finalExpense.approvedBy}\n` +
           `📸 <b>Receipt:</b> ${finalExpense.receiptUrl ? 'Attached ✅' : 'None'}\n\n` +
           `❓ <b>Do you have another expense to add in this session?</b>`;
@@ -629,15 +641,11 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
               </div>
             ) : activeQuestion?.key === 'category' ? (
               /* Q2: Purpose / Category Options */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-28 overflow-y-auto">
-                {(activeQuestion?.options || [
-                  'Travel & Transport',
-                  'Client Dining & Meals',
-                  'Office Supplies',
-                  'Software & Cloud Services',
-                  'Fuel & Maintenance',
-                  'Hotel & Lodging'
-                ]).map((opt) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto">
+                {(activeQuestion?.options && activeQuestion.options.length > 0
+                  ? activeQuestion.options
+                  : botQuestions.find((q) => q.key === 'category')?.options || []
+                ).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => handleSendTelegram(opt)}
@@ -691,6 +699,61 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
                     {proj}
                   </button>
                 ))}
+              </div>
+            ) : activeQuestion?.key === 'workingMonth' ? (
+              /* Working / Invoice Month Options - Multi-select supported */
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
+                  {(activeQuestion?.options && activeQuestion.options.length > 0
+                    ? activeQuestion.options
+                    : [
+                        'January 2026',
+                        'February 2026',
+                        'March 2026',
+                        'April 2026',
+                        'May 2026',
+                        'June 2026',
+                        'July 2026',
+                        'August 2026',
+                        'September 2026',
+                        'October 2026',
+                        'November 2026',
+                        'December 2026'
+                      ]
+                  ).map((m) => {
+                    const isSelected = selectedMonthsTG.includes(m);
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMonthsTG((prev) =>
+                            prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
+                          );
+                        }}
+                        className={`p-1.5 rounded-lg border text-[11px] font-bold text-center shadow-xs cursor-pointer truncate transition-all ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white border-emerald-800 font-bold'
+                            : 'bg-white hover:bg-emerald-50 text-emerald-900 border-emerald-300'
+                        }`}
+                      >
+                        {isSelected ? `✓ ${m}` : m}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedMonthsTG.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSendTelegram(selectedMonthsTG.join(', '));
+                      setSelectedMonthsTG([]);
+                    }}
+                    className="p-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-bold shadow-md cursor-pointer text-center active:scale-95 transition-all"
+                  >
+                    Confirm Selected: {selectedMonthsTG.join(', ')} ✅
+                  </button>
+                )}
               </div>
             ) : activeQuestion?.key === 'approvedBy' ? (
               /* Approver Suggestions */

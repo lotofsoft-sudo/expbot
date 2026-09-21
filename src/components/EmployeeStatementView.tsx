@@ -49,8 +49,8 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
   onSelectCurrentUser,
   onSavePdfConfig
 }) => {
-  // Selected Employee (defaults to currentUser if employee, or first employee)
-  const [selectedUserId, setSelectedUserId] = useState<string>(currentUser.uid);
+  // Selected Employee (defaults to 'all' if admin, or currentUser.uid)
+  const [selectedUserId, setSelectedUserId] = useState<string>(currentUser.role === 'admin' ? 'all' : currentUser.uid);
   
   // Period filter mode: weekly, monthly, yearly, custom, all
   const [periodType, setPeriodType] = useState<StatementPeriodType>('monthly');
@@ -100,6 +100,17 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
 
   // The active employee object
   const activeEmployee = useMemo(() => {
+    if (selectedUserId === 'all') {
+      return {
+        uid: 'all',
+        displayName: 'সকল কর্মচারী (All Staff Total Statement)',
+        email: 'company@wafaq.sa',
+        role: 'admin' as const,
+        employeeId: 'ALL-STAFF',
+        department: 'All Departments / Company Total',
+        designation: 'Consolidated Statement'
+      };
+    }
     return selectableUsers.find((u) => u.uid === selectedUserId) || selectableUsers[0] || currentUser;
   }, [selectableUsers, selectedUserId, currentUser]);
 
@@ -183,8 +194,11 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
     }
   }, [periodType, selectedYear, selectedMonth, selectedWeekOffset, customStartDate, customEndDate]);
 
-  // Filter expenses strictly by active Employee (matches by employeeId, userId, or userEmail)
+  // Filter expenses strictly by active Employee (or all expenses if selectedUserId === 'all')
   const employeeAllExpenses = useMemo(() => {
+    if (selectedUserId === 'all') {
+      return expenses;
+    }
     return expenses.filter((e) => {
       const matchEmpId =
         activeEmployee.employeeId && e.employeeId && e.employeeId.toLowerCase() === activeEmployee.employeeId.toLowerCase();
@@ -196,7 +210,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
 
       return matchEmpId || matchUserId || matchEmail || matchName;
     });
-  }, [expenses, activeEmployee]);
+  }, [expenses, activeEmployee, selectedUserId]);
 
   // Filter by Date Period
   const periodExpenses = useMemo(() => {
@@ -483,7 +497,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
           <div className="flex flex-wrap items-center gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-emerald-100">
             {/* Employee Selector Dropdown */}
             {isAdmin ? (
-              <div className="relative min-w-[200px] sm:min-w-[230px]">
+              <div className="relative min-w-[210px] sm:min-w-[270px]">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block mb-1">
                   এমপ্লয়ি নির্বাচন করুন (Select Employee):
                 </label>
@@ -493,9 +507,12 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                     onChange={(e) => setSelectedUserId(e.target.value)}
                     className="w-full bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-xs"
                   >
+                    <option value="all">
+                      🏢 সকল কর্মচারী / সর্বমোট স্টেটমেন্ট (All Staff Total)
+                    </option>
                     {selectableUsers.map((u) => (
                       <option key={u.uid} value={u.uid}>
-                        {u.displayName} ({u.employeeId}) — {u.department}
+                        👤 {u.displayName} ({u.employeeId}) — {u.department}
                       </option>
                     ))}
                   </select>
@@ -1014,6 +1031,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                 </th>
                 <th className="py-3 px-4">তারিখ</th>
                 <th className="py-3 px-3">ভাউচার আইডি</th>
+                {selectedUserId === 'all' && <th className="py-3 px-3">এমপ্লয়ি (User)</th>}
                 <th className="py-3 px-3">খাত / কারণ (Q2)</th>
                 <th className="py-3 px-4">বিস্তারিত বর্ণনা (Q3)</th>
                 <th className="py-3 px-3">প্রজেক্ট (Q7)</th>
@@ -1029,7 +1047,7 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
             <tbody className="divide-y divide-emerald-100">
               {displayExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-10 text-emerald-800 bg-emerald-50/30 font-medium">
+                  <td colSpan={selectedUserId === 'all' ? 14 : 13} className="text-center py-10 text-emerald-800 bg-emerald-50/30 font-medium">
                     এই নির্বাচিত সময়ের মধ্যে {activeEmployee.displayName} ({activeEmployee.employeeId}) এর কোনো খরচের রেকর্ড পাওয়া যায়নি।
                   </td>
                 </tr>
@@ -1064,6 +1082,14 @@ export const EmployeeStatementView: React.FC<EmployeeStatementViewProps> = ({
                           {exp.id}
                         </span>
                       </td>
+
+                      {/* Employee Cell (shown when All Employees selected) */}
+                      {selectedUserId === 'all' && (
+                        <td className="py-3.5 px-3 whitespace-nowrap">
+                          <div className="font-bold text-emerald-950 text-xs">{exp.userName || 'N/A'}</div>
+                          <div className="text-[10px] text-emerald-700 font-mono">{exp.employeeId || exp.userEmail || ''}</div>
+                        </td>
+                      )}
 
                       {/* Category */}
                       <td className="py-3.5 px-3 font-semibold text-emerald-900 max-w-[140px] truncate">

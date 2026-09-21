@@ -192,9 +192,26 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
       ? `MPR-${primaryExpense.id.slice(-6).toUpperCase()}`
       : ''
   );
-  const [companyName, setCompanyName] = useState<string>(baseConfig.companyName || 'Wafaq Company');
+  const defaultSelectedCat =
+    Array.from(
+      new Set(expenses.map((e) => formatCategoryBilingual(e.category)).filter(Boolean))
+    ).join(', ') || formatCategoryBilingual(primaryExpense.category) || 'Travel & Transport / النقل والمواصلات';
+
+  const [companyName, setCompanyName] = useState<string>(defaultSelectedCat);
+
+  const defaultSupplierName =
+    Array.from(
+      new Set(expenses.map((e) => e.supplierDetail).filter(Boolean))
+    ).join(', ') || primaryExpense.supplierDetail || 'N/A';
+
+  const [supplierName, setSupplierName] = useState<string>(defaultSupplierName);
   const [dateRequest, setDateRequest] = useState<string>(primaryExpense.date || todayStr);
-  const [paymentMonth, setPaymentMonth] = useState<string>(defaultPeriodLabel || currentMonthName);
+  const defaultWorkingMonth =
+    Array.from(
+      new Set(expenses.map((e) => e.workingMonth).filter(Boolean))
+    ).join(', ') || primaryExpense.workingMonth || defaultPeriodLabel || currentMonthName;
+
+  const [paymentMonth, setPaymentMonth] = useState<string>(defaultWorkingMonth);
   const [requiredDate, setRequiredDate] = useState<string>(primaryExpense.date || todayStr);
   const [expansesBy, setExpansesBy] = useState<string>(
     primaryExpense.userName
@@ -206,7 +223,9 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   );
 
   // Fixed Signatories
-  const [preparedBy, setPreparedBy] = useState<string>(baseConfig.preparedByName || 'Fazley Elahi Azim');
+  const [preparedBy, setPreparedBy] = useState<string>(
+    primaryExpense.userName || baseConfig.preparedByName || 'Fazley Elahi Azim'
+  );
   const [verifiedBy, setVerifiedBy] = useState<string>(baseConfig.verifiedByName || 'Mohammad Iftekhairul Alam');
   // Final approver: Nurul Alam
   const [approvedBy1, setApprovedBy1] = useState<string>(
@@ -220,10 +239,13 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   const [approvedBy3, setApprovedBy3] = useState<string>(
     baseConfig.approvedBy3Name || 'Abdulaziz'
   );
-  // Requested by = Employee who submitted/inputted the expense (primaryExpense.userName)
-  const [requestedBy, setRequestedBy] = useState<string>(
-    primaryExpense.userName || baseConfig.requestedByName || 'Mr Abdul Gaffar'
-  );
+  // Requested by = Employee who requested the expense or primaryExpense.requestedBy
+  const defaultRequestedBy =
+    Array.from(
+      new Set(expenses.map((e) => e.requestedBy).filter(Boolean))
+    ).join(', ') || primaryExpense.requestedBy || primaryExpense.userName || baseConfig.requestedByName || 'Mr Abdul Gaffar';
+
+  const [requestedBy, setRequestedBy] = useState<string>(defaultRequestedBy);
 
   const [accountDeptCheckers, setAccountDeptCheckers] = useState<Array<{ name: string; checked: boolean }>>(
     baseConfig.checkedByAccountDeptList || [
@@ -249,9 +271,23 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
           ? `MPR-${pExp.id.slice(-6).toUpperCase()}`
           : ''
       );
-      setCompanyName(baseConfig.companyName || 'Wafaq Company');
+      const selectedCat =
+        Array.from(
+          new Set(expenses.map((e) => formatCategoryBilingual(e.category)).filter(Boolean))
+        ).join(', ') || formatCategoryBilingual(pExp.category) || 'Travel & Transport / النقل والمواصلات';
+      setCompanyName(selectedCat);
+
+      const selectedSupp =
+        Array.from(
+          new Set(expenses.map((e) => e.supplierDetail).filter(Boolean))
+        ).join(', ') || pExp.supplierDetail || 'N/A';
+      setSupplierName(selectedSupp);
       setDateRequest(pExp.date || todayStr);
-      setPaymentMonth(defaultPeriodLabel || currentMonthName);
+      const selectedMonthVal =
+        Array.from(
+          new Set(expenses.map((e) => e.workingMonth).filter(Boolean))
+        ).join(', ') || pExp.workingMonth || defaultPeriodLabel || currentMonthName;
+      setPaymentMonth(selectedMonthVal);
       setRequiredDate(pExp.date || todayStr);
       setExpansesBy(
         pExp.userName
@@ -261,12 +297,16 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
       setCompanyAddress(
         baseConfig.companyAddress || 'P.O. Box 2481, Riyadh 12611, Riyadh, KSA. TelFax: 0112319609'
       );
-      setPreparedBy(baseConfig.preparedByName || 'Fazley Elahi Azim');
+      setPreparedBy(pExp.userName || baseConfig.preparedByName || 'Fazley Elahi Azim');
       setVerifiedBy(baseConfig.verifiedByName || 'Mohammad Iftekhairul Alam');
       setApprovedBy1(baseConfig.approvedBy1Name || baseConfig.approvedByName || 'Nurul Alam');
       setApprovedBy2(baseConfig.approvedBy2Name || 'Bulbul Mashrequi');
       setApprovedBy3(baseConfig.approvedBy3Name || 'Abdulaziz');
-      setRequestedBy(pExp.userName || baseConfig.requestedByName || 'Mr Abdul Gaffar');
+      const selectedReqBy =
+        Array.from(
+          new Set(expenses.map((e) => e.requestedBy).filter(Boolean))
+        ).join(', ') || pExp.requestedBy || pExp.userName || baseConfig.requestedByName || 'Mr Abdul Gaffar';
+      setRequestedBy(selectedReqBy);
       if (baseConfig.checkedByAccountDeptList) {
         setAccountDeptCheckers(baseConfig.checkedByAccountDeptList);
       }
@@ -290,7 +330,17 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   const handleResetDefaults = () => {
     setProjectName('Head office');
     setMprNo('');
-    setCompanyName('Wafaq Company');
+    const selectedCat =
+      Array.from(
+        new Set(expenses.map((e) => formatCategoryBilingual(e.category)).filter(Boolean))
+      ).join(', ') || formatCategoryBilingual(primaryExpense.category) || 'Travel & Transport / النقل والمواصلات';
+    setCompanyName(selectedCat);
+
+    const selectedSupp =
+      Array.from(
+        new Set(expenses.map((e) => e.supplierDetail).filter(Boolean))
+      ).join(', ') || primaryExpense.supplierDetail || 'N/A';
+    setSupplierName(selectedSupp);
     setDateRequest(primaryExpense.date || todayStr);
     setPaymentMonth(currentMonthName);
     setRequiredDate(primaryExpense.date || todayStr);
@@ -397,7 +447,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
   const handleDownloadCsv = () => {
     const csvRows: string[][] = [];
     csvRows.push(['', ' PROJECT', sanitizeEnglishTextForPdf(projectName), '', '', 'MPR No', mprNo, sanitizeEnglishTextForPdf(companyAddress)]);
-    csvRows.push(['', 'Company', sanitizeEnglishTextForPdf(companyName), '', '', 'Date Request', dateRequest]);
+    csvRows.push(['', 'Expenses Category', sanitizeEnglishTextForPdf(companyName), '', '', 'Date Request', dateRequest]);
+    csvRows.push(['', 'Supplier Name', sanitizeEnglishTextForPdf(supplierName), '', '', '', '']);
     csvRows.push(['', 'Payment  Month', sanitizeEnglishTextForPdf(paymentMonth), '', '', 'Required date', requiredDate]);
     csvRows.push(['', 'Expanses By', sanitizeEnglishTextForPdf(expansesBy), '', '', '', '']);
     csvRows.push(['', '', '', '', '', '', '', '']);
@@ -405,9 +456,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
 
     expenses.forEach((exp, idx) => {
       const invNum = String(idx + 1).padStart(2, '0');
-      const cat = formatCategoryBilingual(exp.category);
       const descText = sanitizeEnglishTextForPdf(exp.description);
-      const desc = `${cat ? `[${cat}] ` : ''}${descText}`;
+      const desc = descText;
       const remarks = [
         sanitizeEnglishTextForPdf(exp.vatStatus),
         sanitizeEnglishTextForPdf(exp.paymentMethod),
@@ -635,11 +685,20 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-slate-600 font-semibold mb-0.5">Company</label>
+              <label className="block text-slate-600 font-semibold mb-0.5">Expenses Category</label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full p-1.5 border border-slate-300 rounded font-semibold text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-semibold mb-0.5">Supplier Name</label>
+              <input
+                type="text"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
                 className="w-full p-1.5 border border-slate-300 rounded font-semibold text-slate-900"
               />
             </div>
@@ -882,7 +941,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               </td>
               {/* Merged H3:H6 (Contains Logo and Address) */}
               <td
-                rowSpan={4}
+                rowSpan={5}
                 style={{
                   borderTop: '2px solid #000000',
                   borderRight: '2px solid #000000',
@@ -922,7 +981,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               </td>
             </tr>
 
-            {/* ---------------- ROW 4 (Company | Date Request) ---------------- */}
+            {/* ---------------- ROW 4 (Expenses Category | Date Request) ---------------- */}
             <tr style={{ height: '42px' }}>
               <td
                 style={{
@@ -935,7 +994,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                Company
+                Expenses Category
               </td>
               <td
                 colSpan={3}
@@ -974,6 +1033,62 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                 }}
               >
                 {dateRequest}
+              </td>
+            </tr>
+
+            {/* ---------------- ROW 4B (Supplier Name & Working / Invoice Month) ---------------- */}
+            <tr style={{ height: '36px' }}>
+              <td
+                style={{
+                  borderLeft: '2px solid #000000',
+                  borderRight: '1px solid #000000',
+                  borderBottom: '1px solid #000000',
+                  fontWeight: 'bold',
+                  fontSize: '11pt',
+                  padding: '2px 6px',
+                  verticalAlign: 'middle'
+                }}
+              >
+                Supplier Name
+              </td>
+              <td
+                colSpan={3}
+                style={{
+                  borderRight: '1px solid #000000',
+                  borderBottom: '1px solid #000000',
+                  fontWeight: 'bold',
+                  fontSize: '11pt',
+                  padding: '2px 8px',
+                  verticalAlign: 'middle'
+                }}
+              >
+                {sanitizeEnglishTextForPdf(supplierName)}
+              </td>
+              <td
+                style={{
+                  borderRight: '1px solid #000000',
+                  borderBottom: '1px solid #000000',
+                  fontWeight: 'bold',
+                  fontSize: '11pt',
+                  padding: '2px 6px',
+                  verticalAlign: 'middle',
+                  textAlign: 'center'
+                }}
+              >
+                Working / Invoice Month
+              </td>
+              <td
+                style={{
+                  borderRight: '1px solid #000000',
+                  borderBottom: '1px solid #000000',
+                  fontSize: '11pt',
+                  fontWeight: 'bold',
+                  padding: '2px 8px',
+                  verticalAlign: 'middle',
+                  textAlign: 'center'
+                }}
+              >
+                {sanitizeEnglishTextForPdf(paymentMonth)}
               </td>
             </tr>
 
@@ -1076,7 +1191,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             </tr>
 
             {/* ---------------- ROW 8 (Table Headers) ---------------- */}
-            <tr style={{ height: '28px' }}>
+            <tr style={{ height: '30px', backgroundColor: '#f2f7ff' }}>
               <td
                 style={{
                   borderLeft: '2px solid #000000',
@@ -1086,7 +1201,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Inv.No
@@ -1100,7 +1216,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Description
@@ -1113,7 +1230,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Quantity
@@ -1126,7 +1244,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Price 
@@ -1139,7 +1258,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 {' '}Amount
@@ -1152,7 +1272,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontSize: '12pt',
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  padding: '4px'
+                  padding: '4px',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Remarks
@@ -1163,7 +1284,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             {expenses.map((exp, idx) => {
               const invNum = String(idx + 1).padStart(2, '0');
               const cat = formatCategoryBilingual(exp.category);
-              const desc = sanitizeEnglishTextForPdf(exp.description);
+              const descRaw = sanitizeEnglishTextForPdf(exp.description);
+              const desc = descRaw;
               const vat = sanitizeEnglishTextForPdf(exp.vatStatus);
               const pay = sanitizeEnglishTextForPdf(exp.paymentMethod);
               const proj = sanitizeEnglishTextForPdf(exp.project);
@@ -1204,8 +1326,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                       fontFamily: 'Calibri, Arial, sans-serif'
                     }}
                   >
-                    {cat ? `${cat}` : ''}
-                    {desc ? (cat ? ` - ${desc}` : desc) : ''}
+                    {desc}
                   </td>
                   <td
                     style={{
@@ -1270,7 +1391,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             )}
 
             {/* ---------------- ROW 10 (Total Amount) ---------------- */}
-            <tr style={{ height: '30px' }}>
+            <tr style={{ height: '32px', backgroundColor: '#f2f7ff' }}>
               <td
                 colSpan={4}
                 style={{
@@ -1281,7 +1402,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontWeight: 'bold',
                   fontSize: '13pt',
                   textAlign: 'center',
-                  verticalAlign: 'middle'
+                  verticalAlign: 'middle',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 Total Amount
@@ -1294,7 +1416,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontWeight: 'bold',
                   fontSize: '13pt',
                   textAlign: 'center',
-                  verticalAlign: 'middle'
+                  verticalAlign: 'middle',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
               </td>
@@ -1306,7 +1429,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   fontWeight: 'bold',
                   fontSize: '13pt',
                   textAlign: 'center',
-                  verticalAlign: 'middle'
+                  verticalAlign: 'middle',
+                  backgroundColor: '#f2f7ff'
                 }}
               >
                 {totalAmount.toFixed(2)}
@@ -1315,7 +1439,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                 style={{
                   borderTop: '2px solid #000000',
                   borderRight: '2px solid #000000',
-                  borderBottom: '2px solid #000000'
+                  borderBottom: '2px solid #000000',
+                  backgroundColor: '#f2f7ff'
                 }}
               ></td>
             </tr>

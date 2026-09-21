@@ -233,6 +233,7 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
   const [editPaymentMethod, setEditPaymentMethod] = useState<string>('');
   const [editVatStatus, setEditVatStatus] = useState<string>('');
   const [editProject, setEditProject] = useState<string>('');
+  const [editSupplierDetail, setEditSupplierDetail] = useState<string>('');
   const [editStatus, setEditStatus] = useState<ExpenseStatus>('pending');
 
   const isAdmin = currentUser.role === 'admin';
@@ -267,6 +268,7 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
       (e.description && e.description.toLowerCase().includes(query)) ||
       (e.category && e.category.toLowerCase().includes(query)) ||
       (e.project && e.project.toLowerCase().includes(query)) ||
+      (e.supplierDetail && e.supplierDetail.toLowerCase().includes(query)) ||
       (e.id && e.id.toLowerCase().includes(query)) ||
       (e.batchId && e.batchId.toLowerCase().includes(query));
     return matchesStatus && matchesSearch;
@@ -282,6 +284,7 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
     setEditPaymentMethod(exp.paymentMethod || 'Cash');
     setEditVatStatus(exp.vatStatus || 'Without VAT');
     setEditProject(exp.project || 'General');
+    setEditSupplierDetail(exp.supplierDetail || '');
     setEditStatus(exp.status || 'pending');
   };
 
@@ -308,6 +311,7 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
       paymentMethod: editPaymentMethod,
       vatStatus: editVatStatus,
       project: editProject,
+      supplierDetail: editSupplierDetail,
       status: editStatus
     };
     await onEditExpense(updated);
@@ -915,9 +919,16 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                       </td>
 
                       <td className="p-3 max-w-xs">
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-semibold mb-1">
-                          {exp.category}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1 mb-1">
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-semibold">
+                            {exp.category}
+                          </span>
+                          {exp.supplierDetail && (
+                            <span className="inline-block px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
+                              Supplier: {exp.supplierDetail}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-emerald-900 line-clamp-2 leading-snug">
                           {exp.description}
                         </div>
@@ -1231,6 +1242,18 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                     type="text"
                     value={editProject}
                     onChange={(e) => setEditProject(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Supplier Detail */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Supplier / Vendor Detail</label>
+                  <input
+                    type="text"
+                    value={editSupplierDetail}
+                    onChange={(e) => setEditSupplierDetail(e.target.value)}
+                    placeholder="e.g. Jarir / Supplier Name & Tax ID"
                     className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
