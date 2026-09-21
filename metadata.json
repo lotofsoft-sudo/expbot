@@ -1,5 +1,5 @@
 {
-  "name": "ExpenseFlow — Smart Green Expense Management",
+  "name": "Wafaq Company — Smart Expense Management",
   "description": "Simple, elegant, and modern green-themed expense management system with mobile-first chat assistant, real-time approvals, Google Sheets direct API sync, and Telegram bot integration.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

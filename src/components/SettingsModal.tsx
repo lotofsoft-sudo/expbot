@@ -144,7 +144,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <label className="block font-bold text-emerald-900 mb-1">Company / Organization Name</label>
                 <input
                   type="text"
-                  value={formData.companyName || 'Al-Falak Enterprises KSA'}
+                  value={formData.companyName || 'Wafaq Company'}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="w-full p-2.5 rounded-xl bg-white border border-emerald-200 focus:ring-2 focus:ring-emerald-200 outline-hidden text-emerald-950"
                 />

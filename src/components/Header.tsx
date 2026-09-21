@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-bold text-white text-sm sm:text-base tracking-tight">ExpenseFlow KSA</span>
+            <span className="font-bold text-white text-sm sm:text-base tracking-tight">Wafaq Company</span>
           </div>
           <span className="hidden md:inline-block text-emerald-300 text-xs px-2 py-0.5 rounded-full bg-emerald-800/80 border border-emerald-700/50">
             Saudi Arabia • SAR Currency

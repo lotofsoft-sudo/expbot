@@ -88,7 +88,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
     {
       id: 'tg_welcome',
       sender: 'bot',
-      text: `🤖 <b>ExpenseFlow Telegram Bot (Saudi Arabia)</b>\nWelcome ${currentUser.displayName}! Submit single or multiple expenses by answering 8 standard questions.\n\n📌 <b>Commands:</b>\n• <code>/new</code> or <code>/start</code> - Start new expense submission\n• <code>/pdf</code> - Download approved PDF vouchers\n• <code>/status</code> - System status`,
+      text: `🤖 <b>Wafaq Company Telegram Bot (Saudi Arabia)</b>\nWelcome ${currentUser.displayName}! Submit single or multiple expenses by answering 8 standard questions.\n\n📌 <b>Commands:</b>\n• <code>/new</code> or <code>/start</code> - Start new expense submission\n• <code>/pdf</code> - Download approved PDF vouchers\n• <code>/status</code> - System status`,
       time: '10:00'
     },
     {
@@ -348,7 +348,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
         {
           id: `bot_tg_${Date.now()}`,
           sender: 'bot',
-          text: `🟢 <b>ExpenseFlow Telegram Bot Status:</b>\n• Database: Firestore Synced\n• Currency: SAR (Saudi Riyal)\n• Pending Items: ${pendingList.length}\n• Approved Items: ${approvedList.length}\n• Flow: 9-Question Sequential Verification`,
+          text: `🟢 <b>Wafaq Company Telegram Bot Status:</b>\n• Database: Firestore Synced\n• Currency: SAR (Saudi Riyal)\n• Pending Items: ${pendingList.length}\n• Approved Items: ${approvedList.length}\n• Flow: 9-Question Sequential Verification`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -462,7 +462,7 @@ export const TelegramSimulator: React.FC<TelegramSimulatorProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-sm sm:text-base leading-tight">ExpenseFlow Bot</h3>
+                  <h3 className="font-bold text-sm sm:text-base leading-tight">Wafaq Company Bot</h3>
                   <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
                 </div>
                 <span className="text-[11px] text-emerald-200 block">bot • 9-Question Expense Flow (SAR)</span>

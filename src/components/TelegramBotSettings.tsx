@@ -147,7 +147,7 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
 
     return template
       .replace(/{user_name}/g, currentUser.displayName || 'Employee')
-      .replace(/{company_name}/g, appSettings.companyName || 'ExpenseFlow KSA')
+      .replace(/{company_name}/g, appSettings.companyName || 'Wafaq Company')
       .replace(/{currency}/g, appSettings.defaultCurrency || 'SAR')
       .replace(/{today_date}/g, new Date().toISOString().split('T')[0])
       .replace(/{pending_count}/g, pendingList.length.toString())
@@ -893,7 +893,7 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
                 <div>
                   <p className="font-semibold">Choose Name & Username</p>
                   <p className="text-emerald-700 text-[11px]">
-                    Example: <span className="font-mono">ExpenseFlow Bot</span> &amp; username <span className="font-mono">my_expense_ksa_bot</span>.
+                    Example: <span className="font-mono">Wafaq Company Bot</span> &amp; username <span className="font-mono">wafaq_expense_bot</span>.
                   </p>
                 </div>
               </li>

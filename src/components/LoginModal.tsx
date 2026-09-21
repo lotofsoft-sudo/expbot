@@ -95,7 +95,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
                 <div>
                   <span className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide block">
-                    ExpenseFlow KSA • Auth Center
+                    Wafaq Company • Auth Center
                   </span>
                   <h2 className="text-lg sm:text-xl font-black text-emerald-950">
                     লগইন করুন (App Login)
@@ -182,7 +182,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
         {/* Footer Info */}
         <div className="border-t border-emerald-100 pt-3 text-center text-[11px] text-emerald-700">
-          <span>🔒 Secured Cloud Expense System • Al-Falak Enterprise KSA</span>
+          <span>🔒 Secured Cloud Expense System • Wafaq Company KSA</span>
         </div>
       </div>
     </div>

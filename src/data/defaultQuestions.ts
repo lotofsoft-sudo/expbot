@@ -158,7 +158,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   googleApiKey: '',
   autoSyncToSheets: true,
   defaultCurrency: 'SAR',
-  companyName: 'Al-Falak Enterprises KSA',
+  companyName: 'Wafaq Company',
   approvalPdfConfig: DEFAULT_APPROVAL_PDF_CONFIG
 };
 
