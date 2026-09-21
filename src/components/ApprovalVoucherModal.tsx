@@ -211,7 +211,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
       new Set(expenses.map((e) => e.workingMonth).filter(Boolean))
     ).join(', ') || primaryExpense.workingMonth || defaultPeriodLabel || currentMonthName;
 
-  const [paymentMonth, setPaymentMonth] = useState<string>(defaultWorkingMonth);
+  const [workingMonth, setWorkingMonth] = useState<string>(defaultWorkingMonth);
+  const [paymentMonth, setPaymentMonth] = useState<string>(currentMonthName);
   const [requiredDate, setRequiredDate] = useState<string>(primaryExpense.date || todayStr);
   const [expansesBy, setExpansesBy] = useState<string>(
     primaryExpense.userName
@@ -287,7 +288,8 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
         Array.from(
           new Set(expenses.map((e) => e.workingMonth).filter(Boolean))
         ).join(', ') || pExp.workingMonth || defaultPeriodLabel || currentMonthName;
-      setPaymentMonth(selectedMonthVal);
+      setWorkingMonth(selectedMonthVal);
+      setPaymentMonth(currentMonthName);
       setRequiredDate(pExp.date || todayStr);
       setExpansesBy(
         pExp.userName
@@ -724,6 +726,15 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
               />
             </div>
             <div>
+              <label className="block text-slate-600 font-semibold mb-0.5">Working / Invoice Month</label>
+              <input
+                type="text"
+                value={workingMonth}
+                onChange={(e) => setWorkingMonth(e.target.value)}
+                className="w-full p-1.5 border border-slate-300 rounded text-slate-900"
+              />
+            </div>
+            <div>
               <label className="block text-slate-600 font-semibold mb-0.5">Payment Month</label>
               <input
                 type="text"
@@ -1088,7 +1099,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   textAlign: 'center'
                 }}
               >
-                {sanitizeEnglishTextForPdf(paymentMonth)}
+                {sanitizeEnglishTextForPdf(workingMonth)}
               </td>
             </tr>
 
@@ -1105,7 +1116,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                   verticalAlign: 'middle'
                 }}
               >
-                Payment  Month
+                Payment Month
               </td>
               <td
                 colSpan={3}
