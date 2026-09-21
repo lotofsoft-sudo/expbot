@@ -225,6 +225,8 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
   const [isEditingLoading, setIsEditingLoading] = useState<boolean>(false);
 
   // Form states for Edit Expense Modal
+  const [editUserName, setEditUserName] = useState<string>('');
+  const [editEmployeeId, setEditEmployeeId] = useState<string>('');
   const [editAmount, setEditAmount] = useState<string>('');
   const [editCategory, setEditCategory] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
@@ -234,6 +236,10 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
   const [editVatStatus, setEditVatStatus] = useState<string>('');
   const [editProject, setEditProject] = useState<string>('');
   const [editSupplierDetail, setEditSupplierDetail] = useState<string>('');
+  const [editWorkingMonth, setEditWorkingMonth] = useState<string>('');
+  const [editRequestedBy, setEditRequestedBy] = useState<string>('');
+  const [editApprovedBy, setEditApprovedBy] = useState<string>('');
+  const [editReceiptUrl, setEditReceiptUrl] = useState<string>('');
   const [editStatus, setEditStatus] = useState<ExpenseStatus>('pending');
 
   const isAdmin = currentUser.role === 'admin';
@@ -276,6 +282,8 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
 
   const handleOpenEditModal = (exp: Expense) => {
     setEditingExpense(exp);
+    setEditUserName(exp.userName || '');
+    setEditEmployeeId(exp.employeeId || '');
     setEditAmount(String(exp.amount || exp.totalAmount || 0));
     setEditCategory(exp.category || '');
     setEditDescription(exp.description || '');
@@ -283,8 +291,12 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
     setEditDepartment(exp.department || '');
     setEditPaymentMethod(exp.paymentMethod || 'Cash');
     setEditVatStatus(exp.vatStatus || 'Without VAT');
-    setEditProject(exp.project || 'General');
+    setEditProject(exp.project || 'General Project');
     setEditSupplierDetail(exp.supplierDetail || '');
+    setEditWorkingMonth(exp.workingMonth || '');
+    setEditRequestedBy(exp.requestedBy || '');
+    setEditApprovedBy(exp.approvedBy || '');
+    setEditReceiptUrl(exp.receiptUrl || '');
     setEditStatus(exp.status || 'pending');
   };
 
@@ -302,6 +314,8 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
     setIsEditingLoading(true);
     const updated: Expense = {
       ...editingExpense,
+      userName: editUserName,
+      employeeId: editEmployeeId,
       amount: Number(editAmount),
       totalAmount: Number(editAmount),
       category: editCategory,
@@ -312,6 +326,10 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
       vatStatus: editVatStatus,
       project: editProject,
       supplierDetail: editSupplierDetail,
+      workingMonth: editWorkingMonth,
+      requestedBy: editRequestedBy,
+      approvedBy: editApprovedBy,
+      receiptUrl: editReceiptUrl,
       status: editStatus
     };
     await onEditExpense(updated);
@@ -1155,11 +1173,11 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
       {/* Admin Edit Expense Modal */}
       {editingExpense && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-emerald-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-emerald-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
               <div>
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide block">
-                  Admin Expense Editor
+                  Admin Expense Editor (All Fields Editable)
                 </span>
                 <h3 className="text-lg font-bold text-emerald-950">
                   Edit Expense #{editingExpense.id}
@@ -1175,6 +1193,30 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
 
             <form onSubmit={handleSaveEditSubmit} className="space-y-4 text-xs sm:text-sm">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Employee / Submitter Name */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Submitted By (Employee Name)</label>
+                  <input
+                    type="text"
+                    required
+                    value={editUserName}
+                    onChange={(e) => setEditUserName(e.target.value)}
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Employee ID */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Employee ID</label>
+                  <input
+                    type="text"
+                    value={editEmployeeId}
+                    onChange={(e) => setEditEmployeeId(e.target.value)}
+                    placeholder="e.g. KSA-4022"
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
                 {/* Amount */}
                 <div className="space-y-1">
                   <label className="font-bold text-emerald-900 block">Amount (SAR) *</label>
@@ -1253,7 +1295,43 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                     type="text"
                     value={editSupplierDetail}
                     onChange={(e) => setEditSupplierDetail(e.target.value)}
-                    placeholder="e.g. Jarir / Supplier Name & Tax ID"
+                    placeholder="e.g. Jarir / Sudhir Rental"
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Working / Invoice Month */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Working / Invoice Month</label>
+                  <input
+                    type="text"
+                    value={editWorkingMonth}
+                    onChange={(e) => setEditWorkingMonth(e.target.value)}
+                    placeholder="e.g. September 2026, August 2026"
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Expenses Requested By */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Expenses Requested By</label>
+                  <input
+                    type="text"
+                    value={editRequestedBy}
+                    onChange={(e) => setEditRequestedBy(e.target.value)}
+                    placeholder="e.g. Admin User / Mr Abdul Gaffar"
+                    className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Approved By */}
+                <div className="space-y-1">
+                  <label className="font-bold text-emerald-900 block">Approved By / Approver</label>
+                  <input
+                    type="text"
+                    value={editApprovedBy}
+                    onChange={(e) => setEditApprovedBy(e.target.value)}
+                    placeholder="e.g. Finance Manager / Bulbul Mashrequi"
                     className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -1282,8 +1360,53 @@ export const ApprovalDashboard: React.FC<ApprovalDashboardProps> = ({
                     className="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     <option value="With VAT (15%)">With VAT (15%)</option>
+                    <option value="With VAT">With VAT</option>
                     <option value="Without VAT">Without VAT</option>
                   </select>
+                </div>
+
+                {/* Receipt Photo / Attachment */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-bold text-emerald-900 block">Receipt / Invoice Attachment URL</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={editReceiptUrl}
+                      onChange={(e) => setEditReceiptUrl(e.target.value)}
+                      placeholder="Paste image URL or upload file..."
+                      className="flex-1 bg-emerald-50/60 border border-emerald-200 rounded-xl px-3 py-2 text-emerald-950 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                    />
+                    <label className="px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-xs cursor-pointer shrink-0 border border-emerald-300">
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                setEditReceiptUrl(reader.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {editReceiptUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditReceiptUrl('')}
+                        className="px-2.5 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs cursor-pointer shrink-0 border border-red-200"
+                        title="Remove attachment"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Approval Status */}
