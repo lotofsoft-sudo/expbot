@@ -60,6 +60,97 @@ export function sanitizeEnglishTextForPdf(input: string | undefined | null): str
   return text;
 }
 
+export function formatCategoryBilingual(input: string | undefined | null): string {
+  if (!input) return '';
+  const text = String(input).trim();
+  const lower = text.toLowerCase();
+
+  // 1. Travel & Transport
+  if (
+    lower.includes('travel') ||
+    lower.includes('transport') ||
+    lower.includes('যাতায়াত') ||
+    lower.includes('পরিবহন') ||
+    lower.includes('النقل') ||
+    lower.includes('المواصلات')
+  ) {
+    return 'Travel & Transport / النقل والمواصلات';
+  }
+
+  // 2. Client Dining & Meals
+  if (
+    lower.includes('dining') ||
+    lower.includes('meals') ||
+    lower.includes('ডাইনিং') ||
+    lower.includes('খাবার') ||
+    lower.includes('الوجبات') ||
+    lower.includes('الضيافة')
+  ) {
+    return 'Client Dining & Meals / الوجبات والضيافة';
+  }
+
+  // 3. Office Supplies & Stationery
+  if (
+    lower.includes('supplies') ||
+    lower.includes('stationery') ||
+    lower.includes('স্টেশনারি') ||
+    lower.includes('সাপ্লাই') ||
+    lower.includes('المكتبية') ||
+    lower.includes('المستلزمات')
+  ) {
+    return 'Office Supplies & Stationery / المستلزمات المكتبية';
+  }
+
+  // 4. Software & Cloud Services
+  if (
+    lower.includes('software') ||
+    lower.includes('cloud') ||
+    lower.includes('সফটওয়্যার') ||
+    lower.includes('ক্লাউড') ||
+    lower.includes('السحابية') ||
+    lower.includes('البرامج')
+  ) {
+    return 'Software & Cloud Services / البرامج والخدمات السحابية';
+  }
+
+  // 5. Hotel & Accommodation
+  if (
+    lower.includes('hotel') ||
+    lower.includes('accommodation') ||
+    lower.includes('হোটেল') ||
+    lower.includes('বাসস্থান') ||
+    lower.includes('الإقامة') ||
+    lower.includes('الفنادق')
+  ) {
+    return 'Hotel & Accommodation / الفنادق والإقامة';
+  }
+
+  // 6. Fuel & Vehicle Maintenance
+  if (
+    lower.includes('fuel') ||
+    lower.includes('vehicle') ||
+    lower.includes('maintenance') ||
+    lower.includes('ফুয়েল') ||
+    lower.includes('গাড়ি') ||
+    lower.includes('الوقود') ||
+    lower.includes('المركبات')
+  ) {
+    return 'Fuel & Vehicle Maintenance / الوقود وصيانة المركبات';
+  }
+
+  // 7. Miscellaneous Business
+  if (
+    lower.includes('miscellaneous') ||
+    lower.includes('অন্যান্য') ||
+    lower.includes('متنوعة')
+  ) {
+    return 'Miscellaneous Business / مصاريف أعمال متنوعة';
+  }
+
+  // Fallback: Sanitize text to keep English & Arabic, removing Bengali
+  return sanitizeEnglishTextForPdf(text);
+}
+
 interface ApprovalVoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -314,7 +405,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
 
     expenses.forEach((exp, idx) => {
       const invNum = String(idx + 1).padStart(2, '0');
-      const cat = sanitizeEnglishTextForPdf(exp.category);
+      const cat = formatCategoryBilingual(exp.category);
       const descText = sanitizeEnglishTextForPdf(exp.description);
       const desc = `${cat ? `[${cat}] ` : ''}${descText}`;
       const remarks = [
@@ -1071,7 +1162,7 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
             {/* ---------------- ROW 9 (Data Items) ---------------- */}
             {expenses.map((exp, idx) => {
               const invNum = String(idx + 1).padStart(2, '0');
-              const cat = sanitizeEnglishTextForPdf(exp.category);
+              const cat = formatCategoryBilingual(exp.category);
               const desc = sanitizeEnglishTextForPdf(exp.description);
               const vat = sanitizeEnglishTextForPdf(exp.vatStatus);
               const pay = sanitizeEnglishTextForPdf(exp.paymentMethod);
@@ -1108,13 +1199,13 @@ export const ApprovalVoucherModal: React.FC<ApprovalVoucherModalProps> = ({
                       textAlign: 'left',
                       verticalAlign: 'middle',
                       padding: '4px 10px',
-                      fontSize: '14pt',
+                      fontSize: '13pt',
                       fontWeight: 'bold',
                       fontFamily: 'Calibri, Arial, sans-serif'
                     }}
                   >
-                    {cat ? `${cat} - ` : ''}
-                    {desc}
+                    {cat ? `${cat}` : ''}
+                    {desc ? (cat ? ` - ${desc}` : desc) : ''}
                   </td>
                   <td
                     style={{
